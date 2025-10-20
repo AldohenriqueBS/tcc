@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - ReservaAí</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo"><img src="./src/components/logo2.png" alt=""></div>
+            
+            <nav class="nav">
+                <ul class="nav-list">
+                    <li class="nav-item"><a href="index.html" class="nav-link active">Dashboard</a></li>
+                    <li class="nav-item"><a href="quartos.html" class="nav-link">Quartos</a></li>
+                    <li class="nav-item"><a href="clientes.html" class="nav-link">Clientes</a></li>
+                    <li class="nav-item"><a href="reservas.html" class="nav-link">Reservas</a></li>
+                    <li class="nav-item"><a href="financas.html" class="nav-link">Finanças</a></li>
+                    <li class="nav-item"><a href="relatorios.html" class="nav-link">Relatórios</a></li>
+                </ul>
+            </nav>
+            
+            <div class="user-info">
+                <span class="user-name">Olá, <span id="userName">Usuário</span></span>
+                <button class="btn btn-logout" onclick="logout()">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <h1 class="card-title">Dashboard</h1>
+            
+            <div class="grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalQuartos">0</div>
+                    <div class="stat-label">Total de Quartos</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-number" id="quartosDisponiveis">0</div>
+                    <div class="stat-label">Quartos Disponíveis</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-number" id="totalClientes">0</div>
+                    <div class="stat-label">Total de Clientes</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-number" id="reservasAtivas">0</div>
+                    <div class="stat-label">Reservas Ativas</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title">Status de Limpeza dos Quartos</h2>
+            <div class="grid">
+                <div class="stat-card" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                    <div class="stat-number" id="quartosLimpos">0</div>
+                    <div class="stat-label">Quartos Limpos (Prontos)</div>
+                </div>
+                
+                <div class="stat-card" style="background: linear-gradient(135deg, #dc3545 0%, #e74c3c 100%);">
+                    <div class="stat-number" id="quartosSujos">0</div>
+                    <div class="stat-label">Quartos Sujos (Aguardando)</div>
+                </div>
+                
+                <div class="stat-card" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);">
+                    <div class="stat-number" id="quartosEmLimpeza">0</div>
+                    <div class="stat-label">Quartos em Limpeza</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title">Reservas Recentes</h2>
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p>Carregando dados...</p>
+            </div>
+            <div class="table-container">
+                <table class="table" id="reservasTable">
+                    <thead>
+                        <tr>
+                            <th>Cliente</th>
+                            <th>Quarto</th>
+                            <th>Check-in</th>
+                            <th>Check-out</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reservasTableBody">
+                        <tr>
+                            <td colspan="5" class="text-center">Nenhuma reserva encontrada</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db } from './firebase-config.js';
+        import { collection, getDocs, query, orderBy, limit, where } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+
+        // Verifica autenticação
+        if (!localStorage.getItem('userId')) {
+            window.location.href = 'login.html';
+        }
+
+        // Exibe nome do usuário
+        const userName = localStorage.getItem('userName') || 'Usuário';
+        document.getElementById('userName').textContent = userName;
+
+        // Função de logout
+        window.logout = function() {
+            localStorage.clear();
+            window.location.href = 'login.html';
+        };
+
+        // Carrega estatísticas
+        async function loadStatistics() {
+            try {
+                // Total de quartos
+                const quartosSnapshot = await getDocs(collection(db, 'quartos'));
+                const totalQuartos = quartosSnapshot.size;
+                document.getElementById('totalQuartos').textContent = totalQuartos;
+
+                // Quartos disponíveis
+                const quartosDisponiveisQuery = query(collection(db, 'quartos'), where('status', '==', 'disponivel'));
+                const quartosDisponiveisSnapshot = await getDocs(quartosDisponiveisQuery);
+                document.getElementById('quartosDisponiveis').textContent = quartosDisponiveisSnapshot.size;
+
+                // Total de clientes
+                const clientesSnapshot = await getDocs(collection(db, 'clientes'));
+                document.getElementById('totalClientes').textContent = clientesSnapshot.size;
+
+                // Reservas ativas
+                const reservasAtivasQuery = query(collection(db, 'reservas'), where('status', '==', 'ativa'));
+                const reservasAtivasSnapshot = await getDocs(reservasAtivasQuery);
+                document.getElementById('reservasAtivas').textContent = reservasAtivasSnapshot.size;
+
+                // Estatísticas de limpeza
+                let quartosLimpos = 0;
+                let quartosSujos = 0;
+                let quartosEmLimpeza = 0;
+
+                quartosSnapshot.forEach((doc) => {
+                    const quarto = doc.data();
+                    const statusLimpeza = quarto.statusLimpeza || 'limpo';
+                    
+                    if (statusLimpeza === 'limpo') {
+                        quartosLimpos++;
+                    } else if (statusLimpeza === 'sujo') {
+                        quartosSujos++;
+                    } else if (statusLimpeza === 'em_limpeza') {
+                        quartosEmLimpeza++;
+                    }
+                });
+
+                document.getElementById('quartosLimpos').textContent = quartosLimpos;
+                document.getElementById('quartosSujos').textContent = quartosSujos;
+                document.getElementById('quartosEmLimpeza').textContent = quartosEmLimpeza;
+
+            } catch (error) {
+                console.error('Erro ao carregar estatísticas:', error);
+            }
+        }
+
+        // Carrega reservas recentes
+        async function loadRecentReservations() {
+            const loading = document.getElementById('loading');
+            const tableBody = document.getElementById('reservasTableBody');
+            
+            loading.classList.add('show');
+            
+            try {
+                const q = query(collection(db, 'reservas'), orderBy('dataCriacao', 'desc'), limit(5));
+                const querySnapshot = await getDocs(q);
+
+                if (querySnapshot.empty) {
+                    tableBody.innerHTML = '<tr><td colspan="5" class="text-center">Nenhuma reserva encontrada</td></tr>';
+                    return;
+                }
+
+                tableBody.innerHTML = '';
+                
+                for (const doc of querySnapshot.docs) {
+                    const reserva = doc.data();
+                    const row = document.createElement('tr');
+                    
+                    // Formata as datas
+                    const checkIn = reserva.checkIn ? new Date(reserva.checkIn.seconds * 1000).toLocaleDateString('pt-BR') : '-';
+                    const checkOut = reserva.checkOut ? new Date(reserva.checkOut.seconds * 1000).toLocaleDateString('pt-BR') : '-';
+                    
+                    // Define a classe do badge de status
+                    let statusClass = 'badge-primary';
+                    if (reserva.status === 'ativa') statusClass = 'badge-success';
+                    else if (reserva.status === 'cancelada') statusClass = 'badge-danger';
+                    else if (reserva.status === 'finalizada') statusClass = 'badge-warning';
+                    
+                    row.innerHTML = `
+                        <td>${reserva.nomeCliente || '-'}</td>
+                        <td>${reserva.numeroQuarto || '-'}</td>
+                        <td>${checkIn}</td>
+                        <td>${checkOut}</td>
+                        <td><span class="badge ${statusClass}">${reserva.status || '-'}</span></td>
+                    `;
+                    
+                    tableBody.appendChild(row);
+                }
+
+            } catch (error) {
+                console.error('Erro ao carregar reservas:', error);
+                tableBody.innerHTML = '<tr><td colspan="5" class="text-center">Erro ao carregar reservas</td></tr>';
+            } finally {
+                loading.classList.remove('show');
+            }
+        }
+
+        // Carrega dados ao iniciar
+        loadStatistics();
+        loadRecentReservations();
+    </script>
+</body>
+</html>
+

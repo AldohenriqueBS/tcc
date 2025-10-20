@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reservas - ReservaAí</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo"><img src="./src/components/logo2.png" alt=""></div>
+            
+            <nav class="nav">
+                <ul class="nav-list">
+                    <li class="nav-item"><a href="index.html" class="nav-link">Dashboard</a></li>
+                    <li class="nav-item"><a href="quartos.html" class="nav-link">Quartos</a></li>
+                    <li class="nav-item"><a href="clientes.html" class="nav-link">Clientes</a></li>
+                    <li class="nav-item"><a href="reservas.html" class="nav-link active">Reservas</a></li>
+                    <li class="nav-item"><a href="financas.html" class="nav-link">Finanças</a></li>
+                    <li class="nav-item"><a href="relatorios.html" class="nav-link">Relatórios</a></li>
+                </ul>
+            </nav>
+            
+            <div class="user-info">
+                <span class="user-name">Olá, <span id="userName">Usuário</span></span>
+                <button class="btn btn-logout" onclick="logout()">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <div class="flex-between">
+                <h1 class="card-title">Gerenciamento de Reservas</h1>
+                <button class="btn btn-primary" onclick="openModal()">+ Nova Reserva</button>
+            </div>
+            
+            <div id="alert" class="alert"></div>
+            
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p>Carregando dados...</p>
+            </div>
+            
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Cliente</th>
+                            <th>Quarto</th>
+                            <th>Check-in</th>
+                            <th>Check-out</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reservasTableBody">
+                        <tr>
+                            <td colspan="7" class="text-center">Nenhuma reserva cadastrada</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="reservaModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">Nova Reserva</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            
+            <form id="reservaForm">
+                <input type="hidden" id="reservaId">
+                
+                <div class="form-group">
+                    <label class="form-label" for="clienteId">Cliente</label>
+                    <select id="clienteId" class="form-select" required>
+                        <option value="">Selecione um cliente...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="quartoId">Quarto</label>
+                    <select id="quartoId" class="form-select" required>
+                        <option value="">Selecione um quarto...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="checkIn">Data de Check-in</label>
+                    <input type="date" id="checkIn" class="form-input" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="checkOut">Data de Check-out</label>
+                    <input type="date" id="checkOut" class="form-input" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="numeroPessoas">Número de Pessoas</label>
+                    <input type="number" id="numeroPessoas" class="form-input" min="1" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="valorTotal">Valor Total (R$)</label>
+                    <input type="number" id="valorTotal" class="form-input" step="0.01" min="0" readonly>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="observacoes">Observações</label>
+                    <textarea id="observacoes" class="form-textarea" placeholder="Observações sobre a reserva"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="status">Status</label>
+                    <select id="status" class="form-select" required>
+                        <option value="ativa">Ativa</option>
+                        <option value="confirmada">Confirmada</option>
+                        <option value="cancelada">Cancelada</option>
+                        <option value="finalizada">Finalizada</option>
+                    </select>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db } from './firebase-config.js';
+        import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy, getDoc } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+
+        // Verifica autenticação
+        if (!localStorage.getItem('userId')) {
+            window.location.href = 'login.html';
+        }
+
+        const userName = localStorage.getItem('userName') || 'Usuário';
+        document.getElementById('userName').textContent = userName;
+
+        window.logout = function() {
+            localStorage.clear();
+            window.location.href = 'login.html';
+        };
+
+        const modal = document.getElementById('reservaModal');
+        const reservaForm = document.getElementById('reservaForm');
+        const alertDiv = document.getElementById('alert');
+        const loading = document.getElementById('loading');
+
+        let clientes = [];
+        let quartos = [];
+
+        function showAlert(message, type) {
+            alertDiv.textContent = message;
+            alertDiv.className = `alert alert-${type} show`;
+            setTimeout(() => {
+                alertDiv.className = 'alert';
+            }, 5000);
+        }
+
+        async function loadClientes() {
+            const clientesSnapshot = await getDocs(collection(db, 'clientes'));
+            clientes = [];
+            const clienteSelect = document.getElementById('clienteId');
+            clienteSelect.innerHTML = '<option value="">Selecione um cliente...</option>';
+            
+            clientesSnapshot.forEach((doc) => {
+                const cliente = doc.data();
+                clientes.push({ id: doc.id, ...cliente });
+                const option = document.createElement('option');
+                option.value = doc.id;
+                option.textContent = cliente.nome;
+                clienteSelect.appendChild(option);
+            });
+        }
+
+        async function loadQuartos() {
+            const quartosSnapshot = await getDocs(collection(db, 'quartos'));
+            quartos = [];
+            const quartoSelect = document.getElementById('quartoId');
+            quartoSelect.innerHTML = '<option value="">Selecione um quarto...</option>';
+            
+            quartosSnapshot.forEach((doc) => {
+                const quarto = doc.data();
+                quartos.push({ id: doc.id, ...quarto });
+                const option = document.createElement('option');
+                option.value = doc.id;
+                option.textContent = `${quarto.numero} - ${quarto.tipo} (R$ ${quarto.preco.toFixed(2)}/diária)`;
+                quartoSelect.appendChild(option);
+            });
+        }
+
+        function calculateTotal() {
+            const checkIn = document.getElementById('checkIn').value;
+            const checkOut = document.getElementById('checkOut').value;
+            const quartoId = document.getElementById('quartoId').value;
+
+            if (checkIn && checkOut && quartoId) {
+                const dataCheckIn = new Date(checkIn);
+                const dataCheckOut = new Date(checkOut);
+                const diffTime = Math.abs(dataCheckOut - dataCheckIn);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                const quarto = quartos.find(q => q.id === quartoId);
+                if (quarto && diffDays > 0) {
+                    const total = diffDays * quarto.preco;
+                    document.getElementById('valorTotal').value = total.toFixed(2);
+                }
+            }
+        }
+
+        document.getElementById('checkIn').addEventListener('change', calculateTotal);
+        document.getElementById('checkOut').addEventListener('change', calculateTotal);
+        document.getElementById('quartoId').addEventListener('change', calculateTotal);
+
+        window.openModal = async function(reservaId = null) {
+            await loadClientes();
+            await loadQuartos();
+            
+            modal.classList.add('show');
+            document.getElementById('modalTitle').textContent = reservaId ? 'Editar Reserva' : 'Nova Reserva';
+            
+            if (reservaId) {
+                loadReservaData(reservaId);
+            } else {
+                reservaForm.reset();
+                document.getElementById('reservaId').value = '';
+                document.getElementById('status').value = 'ativa';
+            }
+        };
+
+        window.closeModal = function() {
+            modal.classList.remove('show');
+            reservaForm.reset();
+        };
+
+        async function loadReservaData(reservaId) {
+            const reservasSnapshot = await getDocs(collection(db, 'reservas'));
+            reservasSnapshot.forEach((doc) => {
+                if (doc.id === reservaId) {
+                    const reserva = doc.data();
+                    document.getElementById('reservaId').value = doc.id;
+                    document.getElementById('clienteId').value = reserva.clienteId;
+                    document.getElementById('quartoId').value = reserva.quartoId;
+                    
+                    // Converte Timestamp para formato de data
+                    const checkInDate = new Date(reserva.checkIn.seconds * 1000);
+                    const checkOutDate = new Date(reserva.checkOut.seconds * 1000);
+                    document.getElementById('checkIn').value = checkInDate.toISOString().split('T')[0];
+                    document.getElementById('checkOut').value = checkOutDate.toISOString().split('T')[0];
+                    
+                    document.getElementById('numeroPessoas').value = reserva.numeroPessoas;
+                    document.getElementById('valorTotal').value = reserva.valorTotal;
+                    document.getElementById('observacoes').value = reserva.observacoes || '';
+                    document.getElementById('status').value = reserva.status;
+                }
+            });
+        }
+
+        reservaForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const reservaId = document.getElementById('reservaId').value;
+            const clienteId = document.getElementById('clienteId').value;
+            const quartoId = document.getElementById('quartoId').value;
+            
+            // Busca dados do cliente e quarto
+            const cliente = clientes.find(c => c.id === clienteId);
+            const quarto = quartos.find(q => q.id === quartoId);
+            
+            const checkInValue = document.getElementById('checkIn').value;
+            const checkOutValue = document.getElementById('checkOut').value;
+            
+            const reservaData = {
+                clienteId: clienteId,
+                nomeCliente: cliente.nome,
+                quartoId: quartoId,
+                numeroQuarto: quarto.numero,
+                checkIn: new Date(checkInValue + 'T12:00:00'),
+                checkOut: new Date(checkOutValue + 'T12:00:00'),
+                numeroPessoas: parseInt(document.getElementById('numeroPessoas').value),
+                valorTotal: parseFloat(document.getElementById('valorTotal').value),
+                observacoes: document.getElementById('observacoes').value,
+                status: document.getElementById('status').value,
+                dataAtualizacao: serverTimestamp()
+            };
+
+            try {
+                if (reservaId) {
+                    await updateDoc(doc(db, 'reservas', reservaId), reservaData);
+                    showAlert('Reserva atualizada com sucesso!', 'success');
+                } else {
+                    reservaData.dataCriacao = serverTimestamp();
+                    await addDoc(collection(db, 'reservas'), reservaData);
+                    
+                    // Atualiza status do quarto para ocupado
+                    if (reservaData.status === 'ativa' || reservaData.status === 'confirmada') {
+                        await updateDoc(doc(db, 'quartos', quartoId), {
+                            status: 'ocupado'
+                        });
+                    }
+                    
+                    showAlert('Reserva cadastrada com sucesso!', 'success');
+                }
+                
+                closeModal();
+                loadReservas();
+                
+            } catch (error) {
+                console.error('Erro ao salvar reserva:', error);
+                showAlert('Erro ao salvar reserva. Tente novamente.', 'error');
+            }
+        });
+
+        window.editReserva = function(reservaId) {
+            openModal(reservaId);
+        };
+
+        window.deleteReserva = async function(reservaId, nomeCliente) {
+            if (confirm(`Tem certeza que deseja excluir a reserva de ${nomeCliente}?`)) {
+                try {
+                    await deleteDoc(doc(db, 'reservas', reservaId));
+                    showAlert('Reserva excluída com sucesso!', 'success');
+                    loadReservas();
+                } catch (error) {
+                    console.error('Erro ao excluir reserva:', error);
+                    showAlert('Erro ao excluir reserva. Tente novamente.', 'error');
+                }
+            }
+        };
+
+        async function loadReservas() {
+            loading.classList.add('show');
+            const tableBody = document.getElementById('reservasTableBody');
+            
+            try {
+                const q = query(collection(db, 'reservas'), orderBy('dataCriacao', 'desc'));
+                const querySnapshot = await getDocs(q);
+
+                if (querySnapshot.empty) {
+                    tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Nenhuma reserva cadastrada</td></tr>';
+                    return;
+                }
+
+                tableBody.innerHTML = '';
+                
+                querySnapshot.forEach((doc) => {
+                    const reserva = doc.data();
+                    const row = document.createElement('tr');
+                    
+                    const checkIn = reserva.checkIn ? new Date(reserva.checkIn.seconds * 1000).toLocaleDateString('pt-BR') : '-';
+                    const checkOut = reserva.checkOut ? new Date(reserva.checkOut.seconds * 1000).toLocaleDateString('pt-BR') : '-';
+                    
+                    let statusClass = 'badge-primary';
+                    if (reserva.status === 'ativa' || reserva.status === 'confirmada') statusClass = 'badge-success';
+                    else if (reserva.status === 'cancelada') statusClass = 'badge-danger';
+                    else if (reserva.status === 'finalizada') statusClass = 'badge-warning';
+                    
+                    row.innerHTML = `
+                        <td>${reserva.nomeCliente}</td>
+                        <td>${reserva.numeroQuarto}</td>
+                        <td>${checkIn}</td>
+                        <td>${checkOut}</td>
+                        <td>R$ ${reserva.valorTotal.toFixed(2)}</td>
+                        <td><span class="badge ${statusClass}">${reserva.status}</span></td>
+                        <td class="table-actions">
+                            <button class="btn btn-warning" onclick="editReserva('${doc.id}')">Editar</button>
+                            <button class="btn btn-danger" onclick="deleteReserva('${doc.id}', '${reserva.nomeCliente}')">Excluir</button>
+                        </td>
+                    `;
+                    
+                    tableBody.appendChild(row);
+                });
+
+            } catch (error) {
+                console.error('Erro ao carregar reservas:', error);
+                tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Erro ao carregar reservas</td></tr>';
+            } finally {
+                loading.classList.remove('show');
+            }
+        }
+
+        loadReservas();
+    </script>
+</body>
+</html>
+

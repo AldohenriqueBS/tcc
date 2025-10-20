@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quartos - ReservaAí</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo"><img src="./src/components/logo2.png" alt=""></div>
+            
+            <nav class="nav">
+                <ul class="nav-list">
+                    <li class="nav-item"><a href="index.html" class="nav-link">Dashboard</a></li>
+                    <li class="nav-item"><a href="quartos.html" class="nav-link active">Quartos</a></li>
+                    <li class="nav-item"><a href="clientes.html" class="nav-link">Clientes</a></li>
+                    <li class="nav-item"><a href="reservas.html" class="nav-link">Reservas</a></li>
+                    <li class="nav-item"><a href="financas.html" class="nav-link">Finanças</a></li>
+                    <li class="nav-item"><a href="relatorios.html" class="nav-link">Relatórios</a></li>
+                </ul>
+            </nav>
+            
+            <div class="user-info">
+                <span class="user-name">Olá, <span id="userName">Usuário</span></span>
+                <button class="btn btn-logout" onclick="logout()">Sair</button>
+            </div>
+        </div>
+    </header>
+
+
+    <div class="container">
+        <div class="card">
+            <div class="flex-between">
+                <h1 class="card-title">Gerenciamento de Quartos</h1>
+                <button class="btn btn-primary" onclick="openModal()">+ Novo Quarto</button>
+            </div>
+            
+            <div id="alert" class="alert"></div>
+            
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p>Carregando dados...</p>
+            </div>
+            
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Número</th>
+                            <th>Tipo</th>
+                            <th>Capacidade</th>
+                            <th>Preço/Diária</th>
+                            <th>Status</th>
+                            <th>Limpeza</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="quartosTableBody">
+                        <tr>
+                            <td colspan="7" class="text-center">Nenhum quarto cadastrado</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="quartoModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">Novo Quarto</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            
+            <form id="quartoForm">
+                <input type="hidden" id="quartoId">
+                
+                <div class="form-group">
+                    <label class="form-label" for="numero">Número do Quarto</label>
+                    <input type="text" id="numero" class="form-input" placeholder="Ex: 101" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="tipo">Tipo</label>
+                    <select id="tipo" class="form-select" required>
+                        <option value="">Selecione...</option>
+                        <option value="Standard">Standard</option>
+                        <option value="Luxo">Luxo</option>
+                        <option value="Suíte">Suíte</option>
+                        <option value="Presidencial">Presidencial</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="capacidade">Capacidade (pessoas)</label>
+                    <input type="number" id="capacidade" class="form-input" min="1" max="10" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="preco">Preço por Diária (R$)</label>
+                    <input type="number" id="preco" class="form-input" step="0.01" min="0" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="descricao">Descrição</label>
+                    <textarea id="descricao" class="form-textarea" placeholder="Descreva as características do quarto"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="status">Status</label>
+                    <select id="status" class="form-select" required>
+                        <option value="disponivel">Disponível</option>
+                        <option value="ocupado">Ocupado</option>
+                        <option value="manutencao">Manutenção</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="statusLimpeza">Status de Limpeza</label>
+                    <select id="statusLimpeza" class="form-select" required>
+                        <option value="limpo">Limpo (Pronto para uso)</option>
+                        <option value="sujo">Sujo (Aguardando limpeza)</option>
+                        <option value="em_limpeza">Em limpeza</option>
+                    </select>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db } from './firebase-config.js';
+        import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+
+        // Verifica autenticação
+        if (!localStorage.getItem('userId')) {
+            window.location.href = 'login.html';
+        }
+
+        const userName = localStorage.getItem('userName') || 'Usuário';
+        document.getElementById('userName').textContent = userName;
+
+        window.logout = function() {
+            localStorage.clear();
+            window.location.href = 'login.html';
+        };
+
+        const modal = document.getElementById('quartoModal');
+        const quartoForm = document.getElementById('quartoForm');
+        const alertDiv = document.getElementById('alert');
+        const loading = document.getElementById('loading');
+
+        function showAlert(message, type) {
+            alertDiv.textContent = message;
+            alertDiv.className = `alert alert-${type} show`;
+            setTimeout(() => {
+                alertDiv.className = 'alert';
+            }, 5000);
+        }
+
+        window.openModal = function(quartoId = null) {
+            modal.classList.add('show');
+            document.getElementById('modalTitle').textContent = quartoId ? 'Editar Quarto' : 'Novo Quarto';
+            
+            if (quartoId) {
+                loadQuartoData(quartoId);
+            } else {
+                quartoForm.reset();
+                document.getElementById('quartoId').value = '';
+                document.getElementById('statusLimpeza').value = 'limpo';
+            }
+        };
+
+        window.closeModal = function() {
+            modal.classList.remove('show');
+            quartoForm.reset();
+        };
+
+        async function loadQuartoData(quartoId) {
+            const quartosSnapshot = await getDocs(collection(db, 'quartos'));
+            quartosSnapshot.forEach((doc) => {
+                if (doc.id === quartoId) {
+                    const quarto = doc.data();
+                    document.getElementById('quartoId').value = doc.id;
+                    document.getElementById('numero').value = quarto.numero;
+                    document.getElementById('tipo').value = quarto.tipo;
+                    document.getElementById('capacidade').value = quarto.capacidade;
+                    document.getElementById('preco').value = quarto.preco;
+                    document.getElementById('descricao').value = quarto.descricao || '';
+                    document.getElementById('status').value = quarto.status;
+                    document.getElementById('statusLimpeza').value = quarto.statusLimpeza || 'limpo';
+                }
+            });
+        }
+
+        quartoForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const quartoId = document.getElementById('quartoId').value;
+            const quartoData = {
+                numero: document.getElementById('numero').value,
+                tipo: document.getElementById('tipo').value,
+                capacidade: parseInt(document.getElementById('capacidade').value),
+                preco: parseFloat(document.getElementById('preco').value),
+                descricao: document.getElementById('descricao').value,
+                status: document.getElementById('status').value,
+                statusLimpeza: document.getElementById('statusLimpeza').value,
+                dataAtualizacao: serverTimestamp()
+            };
+
+            try {
+                if (quartoId) {
+                    await updateDoc(doc(db, 'quartos', quartoId), quartoData);
+                    showAlert('Quarto atualizado com sucesso!', 'success');
+                } else {
+                    quartoData.dataCriacao = serverTimestamp();
+                    await addDoc(collection(db, 'quartos'), quartoData);
+                    showAlert('Quarto cadastrado com sucesso!', 'success');
+                }
+                
+                closeModal();
+                loadQuartos();
+                
+            } catch (error) {
+                console.error('Erro ao salvar quarto:', error);
+                showAlert('Erro ao salvar quarto. Tente novamente.', 'error');
+            }
+        });
+
+        window.editQuarto = function(quartoId) {
+            openModal(quartoId);
+        };
+
+        window.deleteQuarto = async function(quartoId, numero) {
+            if (confirm(`Tem certeza que deseja excluir o quarto ${numero}?`)) {
+                try {
+                    await deleteDoc(doc(db, 'quartos', quartoId));
+                    showAlert('Quarto excluído com sucesso!', 'success');
+                    loadQuartos();
+                } catch (error) {
+                    console.error('Erro ao excluir quarto:', error);
+                    showAlert('Erro ao excluir quarto. Tente novamente.', 'error');
+                }
+            }
+        };
+
+        async function loadQuartos() {
+            loading.classList.add('show');
+            const tableBody = document.getElementById('quartosTableBody');
+            
+            try {
+                const q = query(collection(db, 'quartos'), orderBy('numero', 'asc'));
+                const querySnapshot = await getDocs(q);
+
+                if (querySnapshot.empty) {
+                    tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Nenhum quarto cadastrado</td></tr>';
+                    return;
+                }
+
+                tableBody.innerHTML = '';
+                
+                querySnapshot.forEach((doc) => {
+                    const quarto = doc.data();
+                    const row = document.createElement('tr');
+                    
+                    let statusClass = 'badge-success';
+                    if (quarto.status === 'ocupado') statusClass = 'badge-danger';
+                    else if (quarto.status === 'manutencao') statusClass = 'badge-warning';
+                    
+                    let limpezaClass = 'badge-success';
+                    let limpezaTexto = 'Limpo';
+                    if (quarto.statusLimpeza === 'sujo') {
+                        limpezaClass = 'badge-danger';
+                        limpezaTexto = 'Sujo';
+                    } else if (quarto.statusLimpeza === 'em_limpeza') {
+                        limpezaClass = 'badge-warning';
+                        limpezaTexto = 'Em limpeza';
+                    }
+                    
+                    row.innerHTML = `
+                        <td>${quarto.numero}</td>
+                        <td>${quarto.tipo}</td>
+                        <td>${quarto.capacidade} pessoa(s)</td>
+                        <td>R$ ${quarto.preco.toFixed(2)}</td>
+                        <td><span class="badge ${statusClass}">${quarto.status}</span></td>
+                        <td><span class="badge ${limpezaClass}">${limpezaTexto}</span></td>
+                        <td class="table-actions">
+                            <button class="btn btn-warning" onclick="editQuarto('${doc.id}')">Editar</button>
+                            <button class="btn btn-danger" onclick="deleteQuarto('${doc.id}', '${quarto.numero}')">Excluir</button>
+                        </td>
+                    `;
+                    
+                    tableBody.appendChild(row);
+                });
+
+            } catch (error) {
+                console.error('Erro ao carregar quartos:', error);
+                tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Erro ao carregar quartos</td></tr>';
+            } finally {
+                loading.classList.remove('show');
+            }
+        }
+
+        loadQuartos();
+    </script>
+</body>
+</html>
+

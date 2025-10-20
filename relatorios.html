@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatórios - ReservaAí</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo"><img src="./src/components/logo2.png" alt=""></div>
+            
+            <nav class="nav">
+                <ul class="nav-list">
+                    <li class="nav-item"><a href="index.html" class="nav-link">Dashboard</a></li>
+                    <li class="nav-item"><a href="quartos.html" class="nav-link">Quartos</a></li>
+                    <li class="nav-item"><a href="clientes.html" class="nav-link">Clientes</a></li>
+                    <li class="nav-item"><a href="reservas.html" class="nav-link">Reservas</a></li>
+                    <li class="nav-item"><a href="financas.html" class="nav-link">Finanças</a></li>
+                    <li class="nav-item"><a href="relatorios.html" class="nav-link active">Relatórios</a></li>
+                </ul>
+            </nav>
+            
+            <div class="user-info">
+                <span class="user-name">Olá, <span id="userName">Usuário</span></span>
+                <button class="btn btn-logout" onclick="logout()">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <h1 class="card-title">Relatórios e Estatísticas</h1>
+            
+            <div class="grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="receitaTotal">R$ 0,00</div>
+                    <div class="stat-label">Receita Total</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-number" id="totalReservas">0</div>
+                    <div class="stat-label">Total de Reservas</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-number" id="taxaOcupacao">0%</div>
+                    <div class="stat-label">Taxa de Ocupação</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-number" id="ticketMedio">R$ 0,00</div>
+                    <div class="stat-label">Ticket Médio</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title">Exportar Relatórios</h2>
+            <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
+                <button class="btn btn-success" onclick="downloadRelatorioGeral()" style="width: 100%; padding: 20px;">
+                    📊 Relatório Geral Completo
+                </button>
+                <button class="btn btn-success" onclick="downloadRelatorioFinanceiro()" style="width: 100%; padding: 20px;">
+                    💰 Relatório Financeiro (Entradas/Saídas)
+                </button>
+                <button class="btn btn-success" onclick="downloadRelatorioRendaBruta()" style="width: 100%; padding: 20px;">
+                    💵 Relatório de Renda Bruta
+                </button>
+                <button class="btn btn-success" onclick="downloadRelatorioOcupacao()" style="width: 100%; padding: 20px;">
+                    🏨 Relatório de Ocupação
+                </button>
+                <button class="btn btn-success" onclick="downloadRelatorioClientes()" style="width: 100%; padding: 20px;">
+                    👥 Relatório de Clientes
+                </button>
+                <button class="btn btn-success" onclick="downloadRelatorioQuartos()" style="width: 100%; padding: 20px;">
+                    🛏️ Relatório de Quartos
+                </button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title">Filtros de Relatório</h2>
+            <div class="flex" style="gap: 15px; flex-wrap: wrap;">
+                <div class="form-group" style="flex: 1; min-width: 200px;">
+                    <label class="form-label" for="dataInicio">Data Início</label>
+                    <input type="date" id="dataInicio" class="form-input">
+                </div>
+                <div class="form-group" style="flex: 1; min-width: 200px;">
+                    <label class="form-label" for="dataFim">Data Fim</label>
+                    <input type="date" id="dataFim" class="form-input">
+                </div>
+                <div class="form-group" style="flex: 1; min-width: 200px;">
+                    <label class="form-label" for="statusFiltro">Status</label>
+                    <select id="statusFiltro" class="form-select">
+                        <option value="">Todos</option>
+                        <option value="ativa">Ativa</option>
+                        <option value="confirmada">Confirmada</option>
+                        <option value="cancelada">Cancelada</option>
+                        <option value="finalizada">Finalizada</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex-end mt-20">
+                <button class="btn btn-primary" onclick="aplicarFiltros()">Aplicar Filtros</button>
+                <button class="btn btn-secondary" onclick="limparFiltros()">Limpar Filtros</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title">Reservas por Status</h2>
+            <div id="loading1" class="loading">
+                <div class="spinner"></div>
+                <p>Carregando dados...</p>
+            </div>
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Quantidade</th>
+                            <th>Receita</th>
+                        </tr>
+                    </thead>
+                    <tbody id="statusTableBody">
+                        <tr>
+                            <td colspan="3" class="text-center">Carregando...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title">Quartos Mais Reservados</h2>
+            <div id="loading2" class="loading">
+                <div class="spinner"></div>
+                <p>Carregando dados...</p>
+            </div>
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Quarto</th>
+                            <th>Tipo</th>
+                            <th>Reservas</th>
+                            <th>Receita Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="quartosTableBody">
+                        <tr>
+                            <td colspan="4" class="text-center">Carregando...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title">Clientes com Mais Reservas</h2>
+            <div id="loading3" class="loading">
+                <div class="spinner"></div>
+                <p>Carregando dados...</p>
+            </div>
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Cliente</th>
+                            <th>E-mail</th>
+                            <th>Reservas</th>
+                            <th>Valor Total Gasto</th>
+                        </tr>
+                    </thead>
+                    <tbody id="clientesTableBody">
+                        <tr>
+                            <td colspan="4" class="text-center">Carregando...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db } from './firebase-config.js';
+        import { collection, getDocs, query, where, orderBy } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+
+        // Verifica autenticação
+        if (!localStorage.getItem('userId')) {
+            window.location.href = 'login.html';
+        }
+
+        const userName = localStorage.getItem('userName') || 'Usuário';
+        document.getElementById('userName').textContent = userName;
+
+        window.logout = function() {
+            localStorage.clear();
+            window.location.href = 'login.html';
+        };
+
+        let todasReservas = [];
+        let todosQuartos = [];
+        let todosClientes = [];
+
+        async function loadAllData() {
+            const reservasSnapshot = await getDocs(collection(db, 'reservas'));
+            todasReservas = [];
+            reservasSnapshot.forEach((doc) => {
+                todasReservas.push({ id: doc.id, ...doc.data() });
+            });
+
+            const quartosSnapshot = await getDocs(collection(db, 'quartos'));
+            todosQuartos = [];
+            quartosSnapshot.forEach((doc) => {
+                todosQuartos.push({ id: doc.id, ...doc.data() });
+            });
+
+            const clientesSnapshot = await getDocs(collection(db, 'clientes'));
+            todosClientes = [];
+            clientesSnapshot.forEach((doc) => {
+                todosClientes.push({ id: doc.id, ...doc.data() });
+            });
+        }
+
+        async function loadStatistics(reservasFiltradas = null) {
+            const reservas = reservasFiltradas || todasReservas;
+
+            const receitaTotal = reservas.reduce((sum, r) => sum + (r.valorTotal || 0), 0);
+            document.getElementById('receitaTotal').textContent = `R$ ${receitaTotal.toFixed(2)}`;
+
+            document.getElementById('totalReservas').textContent = reservas.length;
+
+            const quartosOcupados = todosQuartos.filter(q => q.status === 'ocupado').length;
+            const taxaOcupacao = todosQuartos.length > 0 ? (quartosOcupados / todosQuartos.length * 100) : 0;
+            document.getElementById('taxaOcupacao').textContent = `${taxaOcupacao.toFixed(1)}%`;
+
+            const ticketMedio = reservas.length > 0 ? receitaTotal / reservas.length : 0;
+            document.getElementById('ticketMedio').textContent = `R$ ${ticketMedio.toFixed(2)}`;
+        }
+
+        async function loadReservasPorStatus(reservasFiltradas = null) {
+            const loading = document.getElementById('loading1');
+            loading.classList.add('show');
+            
+            const tableBody = document.getElementById('statusTableBody');
+            const reservas = reservasFiltradas || todasReservas;
+
+            try {
+                const statusCount = {};
+                const statusReceita = {};
+
+                reservas.forEach((reserva) => {
+                    const status = reserva.status || 'indefinido';
+                    statusCount[status] = (statusCount[status] || 0) + 1;
+                    statusReceita[status] = (statusReceita[status] || 0) + (reserva.valorTotal || 0);
+                });
+
+                if (Object.keys(statusCount).length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="3" class="text-center">Nenhum dado disponível</td></tr>';
+                    return;
+                }
+
+                tableBody.innerHTML = '';
+                
+                Object.keys(statusCount).forEach((status) => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><span class="badge badge-primary">${status}</span></td>
+                        <td>${statusCount[status]}</td>
+                        <td>R$ ${statusReceita[status].toFixed(2)}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+
+            } catch (error) {
+                console.error('Erro ao carregar dados:', error);
+                tableBody.innerHTML = '<tr><td colspan="3" class="text-center">Erro ao carregar dados</td></tr>';
+            } finally {
+                loading.classList.remove('show');
+            }
+        }
+
+        async function loadQuartosMaisReservados(reservasFiltradas = null) {
+            const loading = document.getElementById('loading2');
+            loading.classList.add('show');
+            
+            const tableBody = document.getElementById('quartosTableBody');
+            const reservas = reservasFiltradas || todasReservas;
+
+            try {
+                const quartoStats = {};
+
+                reservas.forEach((reserva) => {
+                    const quartoId = reserva.quartoId;
+                    if (!quartoStats[quartoId]) {
+                        quartoStats[quartoId] = {
+                            numeroQuarto: reserva.numeroQuarto,
+                            count: 0,
+                            receita: 0
+                        };
+                    }
+                    quartoStats[quartoId].count++;
+                    quartoStats[quartoId].receita += reserva.valorTotal || 0;
+                });
+
+                Object.keys(quartoStats).forEach((quartoId) => {
+                    const quarto = todosQuartos.find(q => q.id === quartoId);
+                    if (quarto) {
+                        quartoStats[quartoId].tipo = quarto.tipo;
+                    }
+                });
+
+                const sortedQuartos = Object.entries(quartoStats)
+                    .sort((a, b) => b[1].count - a[1].count)
+                    .slice(0, 10);
+
+                if (sortedQuartos.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="4" class="text-center">Nenhum dado disponível</td></tr>';
+                    return;
+                }
+
+                tableBody.innerHTML = '';
+                
+                sortedQuartos.forEach(([quartoId, stats]) => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${stats.numeroQuarto}</td>
+                        <td>${stats.tipo || '-'}</td>
+                        <td>${stats.count}</td>
+                        <td>R$ ${stats.receita.toFixed(2)}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+
+            } catch (error) {
+                console.error('Erro ao carregar dados:', error);
+                tableBody.innerHTML = '<tr><td colspan="4" class="text-center">Erro ao carregar dados</td></tr>';
+            } finally {
+                loading.classList.remove('show');
+            }
+        }
+
+        async function loadClientesMaisReservas(reservasFiltradas = null) {
+            const loading = document.getElementById('loading3');
+            loading.classList.add('show');
+            
+            const tableBody = document.getElementById('clientesTableBody');
+            const reservas = reservasFiltradas || todasReservas;
+
+            try {
+                const clienteStats = {};
+
+                reservas.forEach((reserva) => {
+                    const clienteId = reserva.clienteId;
+                    if (!clienteStats[clienteId]) {
+                        clienteStats[clienteId] = {
+                            nomeCliente: reserva.nomeCliente,
+                            count: 0,
+                            valorTotal: 0
+                        };
+                    }
+                    clienteStats[clienteId].count++;
+                    clienteStats[clienteId].valorTotal += reserva.valorTotal || 0;
+                });
+
+                Object.keys(clienteStats).forEach((clienteId) => {
+                    const cliente = todosClientes.find(c => c.id === clienteId);
+                    if (cliente) {
+                        clienteStats[clienteId].email = cliente.email;
+                    }
+                });
+
+                const sortedClientes = Object.entries(clienteStats)
+                    .sort((a, b) => b[1].count - a[1].count)
+                    .slice(0, 10);
+
+                if (sortedClientes.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="4" class="text-center">Nenhum dado disponível</td></tr>';
+                    return;
+                }
+
+                tableBody.innerHTML = '';
+                
+                sortedClientes.forEach(([clienteId, stats]) => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${stats.nomeCliente}</td>
+                        <td>${stats.email || '-'}</td>
+                        <td>${stats.count}</td>
+                        <td>R$ ${stats.valorTotal.toFixed(2)}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+
+            } catch (error) {
+                console.error('Erro ao carregar dados:', error);
+                tableBody.innerHTML = '<tr><td colspan="4" class="text-center">Erro ao carregar dados</td></tr>';
+            } finally {
+                loading.classList.remove('show');
+            }
+        }
+
+        window.aplicarFiltros = function() {
+            const dataInicio = document.getElementById('dataInicio').value;
+            const dataFim = document.getElementById('dataFim').value;
+            const statusFiltro = document.getElementById('statusFiltro').value;
+
+            let reservasFiltradas = [...todasReservas];
+
+            if (dataInicio) {
+                const dataInicioObj = new Date(dataInicio + 'T00:00:00');
+                reservasFiltradas = reservasFiltradas.filter(r => {
+                    const checkIn = new Date(r.checkIn.seconds * 1000);
+                    return checkIn >= dataInicioObj;
+                });
+            }
+
+            if (dataFim) {
+                const dataFimObj = new Date(dataFim + 'T23:59:59');
+                reservasFiltradas = reservasFiltradas.filter(r => {
+                    const checkIn = new Date(r.checkIn.seconds * 1000);
+                    return checkIn <= dataFimObj;
+                });
+            }
+
+            if (statusFiltro) {
+                reservasFiltradas = reservasFiltradas.filter(r => r.status === statusFiltro);
+            }
+
+            loadStatistics(reservasFiltradas);
+            loadReservasPorStatus(reservasFiltradas);
+            loadQuartosMaisReservados(reservasFiltradas);
+            loadClientesMaisReservas(reservasFiltradas);
+        };
+
+        window.limparFiltros = function() {
+            document.getElementById('dataInicio').value = '';
+            document.getElementById('dataFim').value = '';
+            document.getElementById('statusFiltro').value = '';
+            
+            loadStatistics();
+            loadReservasPorStatus();
+            loadQuartosMaisReservados();
+            loadClientesMaisReservas();
+        };
+
+        // Funções de download de relatórios
+        function gerarDataHora() {
+            const agora = new Date();
+            return agora.toLocaleString('pt-BR');
+        }
+
+        function downloadCSV(filename, data) {
+            const blob = new Blob([data], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        window.downloadRelatorioGeral = function() {
+            let csv = 'RELATÓRIO GERAL - RESERVAÁI\n';
+            csv += 'Gerado em: ' + gerarDataHora() + '\n\n';
+            csv += 'ESTATÍSTICAS GERAIS\n';
+            csv += 'Receita Total,Total de Reservas,Taxa de Ocupação,Ticket Médio\n';
+            
+            const receitaTotal = todasReservas.reduce((sum, r) => sum + (r.valorTotal || 0), 0);
+            const quartosOcupados = todosQuartos.filter(q => q.status === 'ocupado').length;
+            const taxaOcupacao = todosQuartos.length > 0 ? (quartosOcupados / todosQuartos.length * 100) : 0;
+            const ticketMedio = todasReservas.length > 0 ? receitaTotal / todasReservas.length : 0;
+            
+            csv += `R$ ${receitaTotal.toFixed(2)},${todasReservas.length},${taxaOcupacao.toFixed(1)}%,R$ ${ticketMedio.toFixed(2)}\n\n`;
+            
+            csv += 'TODAS AS RESERVAS\n';
+            csv += 'Cliente,Quarto,Check-in,Check-out,Valor,Status\n';
+            
+            todasReservas.forEach(r => {
+                const checkIn = r.checkIn ? new Date(r.checkIn.seconds * 1000).toLocaleDateString('pt-BR') : '-';
+                const checkOut = r.checkOut ? new Date(r.checkOut.seconds * 1000).toLocaleDateString('pt-BR') : '-';
+                csv += `${r.nomeCliente},${r.numeroQuarto},${checkIn},${checkOut},R$ ${r.valorTotal.toFixed(2)},${r.status}\n`;
+            });
+            
+            downloadCSV('relatorio_geral_' + Date.now() + '.csv', csv);
+        };
+
+        window.downloadRelatorioFinanceiro = function() {
+            let csv = 'RELATÓRIO FINANCEIRO - ENTRADAS E SAÍDAS\n';
+            csv += 'Gerado em: ' + gerarDataHora() + '\n\n';
+            
+            csv += 'ENTRADAS (RECEITAS)\n';
+            csv += 'Data Check-in,Cliente,Quarto,Valor,Status\n';
+            
+            const reservasAtivas = todasReservas.filter(r => r.status === 'ativa' || r.status === 'confirmada' || r.status === 'finalizada');
+            let totalEntradas = 0;
+            
+            reservasAtivas.forEach(r => {
+                const checkIn = r.checkIn ? new Date(r.checkIn.seconds * 1000).toLocaleDateString('pt-BR') : '-';
+                csv += `${checkIn},${r.nomeCliente},${r.numeroQuarto},R$ ${r.valorTotal.toFixed(2)},${r.status}\n`;
+                totalEntradas += r.valorTotal || 0;
+            });
+            
+            csv += `\nTOTAL DE ENTRADAS,,,R$ ${totalEntradas.toFixed(2)}\n\n`;
+            
+            csv += 'SAÍDAS (CANCELAMENTOS)\n';
+            csv += 'Data Check-in,Cliente,Quarto,Valor Perdido,Status\n';
+            
+            const reservasCanceladas = todasReservas.filter(r => r.status === 'cancelada');
+            let totalSaidas = 0;
+            
+            reservasCanceladas.forEach(r => {
+                const checkIn = r.checkIn ? new Date(r.checkIn.seconds * 1000).toLocaleDateString('pt-BR') : '-';
+                csv += `${checkIn},${r.nomeCliente},${r.numeroQuarto},R$ ${r.valorTotal.toFixed(2)},${r.status}\n`;
+                totalSaidas += r.valorTotal || 0;
+            });
+            
+            csv += `\nTOTAL DE SAÍDAS,,,R$ ${totalSaidas.toFixed(2)}\n`;
+            csv += `\nSALDO LÍQUIDO,,,R$ ${(totalEntradas - totalSaidas).toFixed(2)}\n`;
+            
+            downloadCSV('relatorio_financeiro_' + Date.now() + '.csv', csv);
+        };
+
+        window.downloadRelatorioRendaBruta = function() {
+            let csv = 'RELATÓRIO DE RENDA BRUTA\n';
+            csv += 'Gerado em: ' + gerarDataHora() + '\n\n';
+            
+            const reservasPorMes = {};
+            
+            todasReservas.forEach(r => {
+                if (r.checkIn && (r.status === 'ativa' || r.status === 'confirmada' || r.status === 'finalizada')) {
+                    const data = new Date(r.checkIn.seconds * 1000);
+                    const mesAno = `${data.getMonth() + 1}/${data.getFullYear()}`;
+                    
+                    if (!reservasPorMes[mesAno]) {
+                        reservasPorMes[mesAno] = {
+                            quantidade: 0,
+                            receita: 0
+                        };
+                    }
+                    
+                    reservasPorMes[mesAno].quantidade++;
+                    reservasPorMes[mesAno].receita += r.valorTotal || 0;
+                }
+            });
+            
+            csv += 'Mês/Ano,Quantidade de Reservas,Renda Bruta\n';
+            
+            let totalGeral = 0;
+            Object.keys(reservasPorMes).sort().forEach(mesAno => {
+                const stats = reservasPorMes[mesAno];
+                csv += `${mesAno},${stats.quantidade},R$ ${stats.receita.toFixed(2)}\n`;
+                totalGeral += stats.receita;
+            });
+            
+            csv += `\nTOTAL GERAL,,R$ ${totalGeral.toFixed(2)}\n`;
+            
+            downloadCSV('relatorio_renda_bruta_' + Date.now() + '.csv', csv);
+        };
+
+        window.downloadRelatorioOcupacao = function() {
+            let csv = 'RELATÓRIO DE OCUPAÇÃO DE QUARTOS\n';
+            csv += 'Gerado em: ' + gerarDataHora() + '\n\n';
+            
+            csv += 'RESUMO DE OCUPAÇÃO\n';
+            csv += 'Total de Quartos,Quartos Ocupados,Quartos Disponíveis,Taxa de Ocupação\n';
+            
+            const quartosOcupados = todosQuartos.filter(q => q.status === 'ocupado').length;
+            const quartosDisponiveis = todosQuartos.filter(q => q.status === 'disponivel').length;
+            const taxaOcupacao = todosQuartos.length > 0 ? (quartosOcupados / todosQuartos.length * 100) : 0;
+            
+            csv += `${todosQuartos.length},${quartosOcupados},${quartosDisponiveis},${taxaOcupacao.toFixed(1)}%\n\n`;
+            
+            csv += 'DETALHAMENTO POR QUARTO\n';
+            csv += 'Número,Tipo,Capacidade,Preço Diária,Status,Status Limpeza\n';
+            
+            todosQuartos.forEach(q => {
+                csv += `${q.numero},${q.tipo},${q.capacidade},R$ ${q.preco.toFixed(2)},${q.status},${q.statusLimpeza || 'limpo'}\n`;
+            });
+            
+            downloadCSV('relatorio_ocupacao_' + Date.now() + '.csv', csv);
+        };
+
+        window.downloadRelatorioClientes = function() {
+            let csv = 'RELATÓRIO DE CLIENTES\n';
+            csv += 'Gerado em: ' + gerarDataHora() + '\n\n';
+            
+            csv += 'Nome,CPF,E-mail,Telefone,Cidade,Estado,Total de Reservas,Valor Total Gasto\n';
+            
+            todosClientes.forEach(c => {
+                const reservasCliente = todasReservas.filter(r => r.clienteId === c.id);
+                const totalReservas = reservasCliente.length;
+                const valorTotal = reservasCliente.reduce((sum, r) => sum + (r.valorTotal || 0), 0);
+                
+                csv += `${c.nome},${c.cpf},${c.email},${c.telefone},${c.cidade || '-'},${c.estado || '-'},${totalReservas},R$ ${valorTotal.toFixed(2)}\n`;
+            });
+            
+            downloadCSV('relatorio_clientes_' + Date.now() + '.csv', csv);
+        };
+
+        window.downloadRelatorioQuartos = function() {
+            let csv = 'RELATÓRIO DE QUARTOS\n';
+            csv += 'Gerado em: ' + gerarDataHora() + '\n\n';
+            
+            csv += 'Número,Tipo,Capacidade,Preço Diária,Status,Status Limpeza,Total de Reservas,Receita Gerada\n';
+            
+            todosQuartos.forEach(q => {
+                const reservasQuarto = todasReservas.filter(r => r.quartoId === q.id);
+                const totalReservas = reservasQuarto.length;
+                const receitaGerada = reservasQuarto.reduce((sum, r) => sum + (r.valorTotal || 0), 0);
+                
+                csv += `${q.numero},${q.tipo},${q.capacidade},R$ ${q.preco.toFixed(2)},${q.status},${q.statusLimpeza || 'limpo'},${totalReservas},R$ ${receitaGerada.toFixed(2)}\n`;
+            });
+            
+            downloadCSV('relatorio_quartos_' + Date.now() + '.csv', csv);
+        };
+
+        async function init() {
+            await loadAllData();
+            loadStatistics();
+            loadReservasPorStatus();
+            loadQuartosMaisReservados();
+            loadClientesMaisReservas();
+        }
+
+        init();
+    </script>
+</body>
+</html>
+

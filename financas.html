@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finanças - ReservaAí</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo"><img src="./src/components/logo2.png" alt=""></div>
+            
+            <nav class="nav">
+                <ul class="nav-list">
+                    <li class="nav-item"><a href="index.html" class="nav-link">Dashboard</a></li>
+                    <li class="nav-item"><a href="quartos.html" class="nav-link">Quartos</a></li>
+                    <li class="nav-item"><a href="clientes.html" class="nav-link">Clientes</a></li>
+                    <li class="nav-item"><a href="reservas.html" class="nav-link">Reservas</a></li>
+                    <li class="nav-item"><a href="financas.html" class="nav-link active">Finanças</a></li>
+                    <li class="nav-item"><a href="relatorios.html" class="nav-link">Relatórios</a></li>
+                </ul>
+            </nav>
+            
+            <div class="user-info">
+                <span class="user-name">Olá, <span id="userName">Usuário</span></span>
+                <button class="btn btn-logout" onclick="logout()">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <h1 class="card-title">Controle Financeiro</h1>
+            
+            <div class="grid">
+                <div class="stat-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                    <div class="stat-number" id="receitaTotal">R$ 0,00</div>
+                    <div class="stat-label">Receita Total (Reservas)</div>
+                </div>
+                
+                <div class="stat-card" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+                    <div class="stat-number" id="despesaTotal">R$ 0,00</div>
+                    <div class="stat-label">Despesas Totais</div>
+                </div>
+                
+                <div class="stat-card" id="saldoCard" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+                    <div class="stat-number" id="saldoLiquido">R$ 0,00</div>
+                    <div class="stat-label">Saldo Líquido</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="flex-between">
+                <h2 class="card-title">Notas Fiscais e Despesas</h2>
+                <div class="flex-end">
+                    <button class="btn btn-success" onclick="exportarPDF()">📄 Exportar PDF</button>
+                    <button class="btn btn-primary" onclick="openModal()">+ Nova Despesa</button>
+                </div>
+            </div>
+            
+            <div id="alert" class="alert"></div>
+            
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p>Carregando dados...</p>
+            </div>
+            
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Data Emissão</th>
+                            <th>Categoria</th>
+                            <th>Fornecedor</th>
+                            <th>Nº Nota Fiscal</th>
+                            <th>Descrição</th>
+                            <th>Valor</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="despesasTableBody">
+                        <tr>
+                            <td colspan="7" class="text-center">Nenhuma despesa cadastrada</td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr style="background: rgba(37, 99, 235, 0.05); font-weight: 700;">
+                            <td colspan="5" style="text-align: right; padding: 16px 20px; font-size: 16px;">TOTAL DE DESPESAS:</td>
+                            <td id="totalDespesasTabela" style="color: #ef4444; font-size: 16px; padding: 16px 20px;">R$ 0,00</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="despesaModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">Nova Despesa</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            
+            <form id="despesaForm">
+                <input type="hidden" id="despesaId">
+                
+                <div class="form-group">
+                    <label class="form-label">Data de Emissão</label>
+                    <input type="date" id="dataEmissao" class="form-input" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Categoria</label>
+                    <select id="categoria" class="form-select" required>
+                        <option value="">Selecione...</option>
+                        <option value="Materiais de Limpeza">Materiais de Limpeza</option>
+                        <option value="Supermercado">Supermercado</option>
+                        <option value="Manutenção">Manutenção</option>
+                        <option value="Equipamentos">Equipamentos</option>
+                        <option value="Roupas de Cama">Roupas de Cama</option>
+                        <option value="Utensílios">Utensílios</option>
+                        <option value="Energia Elétrica">Energia Elétrica</option>
+                        <option value="Água">Água</option>
+                        <option value="Internet/Telefone">Internet/Telefone</option>
+                        <option value="Salários">Salários</option>
+                        <option value="Impostos">Impostos</option>
+                        <option value="Marketing">Marketing</option>
+                        <option value="Outros">Outros</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Fornecedor/Empresa</label>
+                    <input type="text" id="fornecedor" class="form-input" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">CNPJ do Fornecedor</label>
+                    <input type="text" id="cnpjFornecedor" class="form-input" maxlength="18">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Número da Nota Fiscal</label>
+                    <input type="text" id="numeroNF" class="form-input" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Série da Nota Fiscal</label>
+                    <input type="text" id="serieNF" class="form-input">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Chave de Acesso (NFe)</label>
+                    <input type="text" id="chaveAcesso" class="form-input" maxlength="44">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Descrição Detalhada</label>
+                    <textarea id="descricao" class="form-textarea" required></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Valor Total (R$)</label>
+                    <input type="number" id="valor" class="form-input" step="0.01" min="0" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Forma de Pagamento</label>
+                    <select id="formaPagamento" class="form-select" required>
+                        <option value="">Selecione...</option>
+                        <option value="Dinheiro">Dinheiro</option>
+                        <option value="Cartão de Crédito">Cartão de Crédito</option>
+                        <option value="Cartão de Débito">Cartão de Débito</option>
+                        <option value="PIX">PIX</option>
+                        <option value="Boleto">Boleto</option>
+                        <option value="Transferência">Transferência</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Data de Pagamento</label>
+                    <input type="date" id="dataPagamento" class="form-input">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Observações</label>
+                    <textarea id="observacoes" class="form-textarea"></textarea>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db } from './firebase-config.js';
+        import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+
+        if (!localStorage.getItem('userId')) {
+            window.location.href = 'login.html';
+        }
+
+        const userName = localStorage.getItem('userName') || 'Usuário';
+        document.getElementById('userName').textContent = userName;
+
+        window.logout = function() {
+            localStorage.clear();
+            window.location.href = 'login.html';
+        };
+
+        const modal = document.getElementById('despesaModal');
+        const despesaForm = document.getElementById('despesaForm');
+        const alertDiv = document.getElementById('alert');
+        const loading = document.getElementById('loading');
+
+        // Máscara CNPJ
+        document.getElementById('cnpjFornecedor').addEventListener('input', function(e) {
+            let v = e.target.value.replace(/\D/g, '');
+            if (v.length <= 14) {
+                v = v.replace(/^(\d{2})(\d)/, '$1.$2');
+                v = v.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+                v = v.replace(/\.(\d{3})(\d)/, '.$1/$2');
+                v = v.replace(/(\d{4})(\d)/, '$1-$2');
+                e.target.value = v;
+            }
+        });
+
+        function showAlert(message, type) {
+            alertDiv.textContent = message;
+            alertDiv.className = `alert alert-${type} show`;
+            setTimeout(() => {
+                alertDiv.className = 'alert';
+            }, 5000);
+        }
+
+        window.openModal = function(despesaId = null) {
+            modal.classList.add('show');
+            document.getElementById('modalTitle').textContent = despesaId ? 'Editar Despesa' : 'Nova Despesa';
+            
+            if (despesaId) {
+                loadDespesaData(despesaId);
+            } else {
+                despesaForm.reset();
+                document.getElementById('despesaId').value = '';
+                document.getElementById('dataEmissao').value = new Date().toISOString().split('T')[0];
+            }
+        };
+
+        window.closeModal = function() {
+            modal.classList.remove('show');
+            despesaForm.reset();
+        };
+
+        async function loadDespesaData(despesaId) {
+            const despesasSnapshot = await getDocs(collection(db, 'despesas'));
+            despesasSnapshot.forEach((docSnap) => {
+                if (docSnap.id === despesaId) {
+                    const despesa = docSnap.data();
+                    document.getElementById('despesaId').value = docSnap.id;
+                    
+                    if (despesa.dataEmissao) {
+                        const dataEmissao = new Date(despesa.dataEmissao.seconds * 1000);
+                        document.getElementById('dataEmissao').value = dataEmissao.toISOString().split('T')[0];
+                    }
+                    
+                    document.getElementById('categoria').value = despesa.categoria || '';
+                    document.getElementById('fornecedor').value = despesa.fornecedor || '';
+                    document.getElementById('cnpjFornecedor').value = despesa.cnpjFornecedor || '';
+                    document.getElementById('numeroNF').value = despesa.numeroNF || '';
+                    document.getElementById('serieNF').value = despesa.serieNF || '';
+                    document.getElementById('chaveAcesso').value = despesa.chaveAcesso || '';
+                    document.getElementById('descricao').value = despesa.descricao || '';
+                    document.getElementById('valor').value = despesa.valor || '';
+                    document.getElementById('formaPagamento').value = despesa.formaPagamento || '';
+                    
+                    if (despesa.dataPagamento) {
+                        const dataPagamento = new Date(despesa.dataPagamento.seconds * 1000);
+                        document.getElementById('dataPagamento').value = dataPagamento.toISOString().split('T')[0];
+                    }
+                    
+                    document.getElementById('observacoes').value = despesa.observacoes || '';
+                }
+            });
+        }
+
+        despesaForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const despesaId = document.getElementById('despesaId').value;
+            const dataEmissaoValue = document.getElementById('dataEmissao').value;
+            const dataPagamentoValue = document.getElementById('dataPagamento').value;
+            
+            const despesaData = {
+                dataEmissao: new Date(dataEmissaoValue + 'T12:00:00'),
+                categoria: document.getElementById('categoria').value,
+                fornecedor: document.getElementById('fornecedor').value,
+                cnpjFornecedor: document.getElementById('cnpjFornecedor').value,
+                numeroNF: document.getElementById('numeroNF').value,
+                serieNF: document.getElementById('serieNF').value,
+                chaveAcesso: document.getElementById('chaveAcesso').value,
+                descricao: document.getElementById('descricao').value,
+                valor: parseFloat(document.getElementById('valor').value),
+                formaPagamento: document.getElementById('formaPagamento').value,
+                dataPagamento: dataPagamentoValue ? new Date(dataPagamentoValue + 'T12:00:00') : null,
+                observacoes: document.getElementById('observacoes').value,
+                dataAtualizacao: serverTimestamp()
+            };
+
+            try {
+                if (despesaId) {
+                    await updateDoc(doc(db, 'despesas', despesaId), despesaData);
+                    showAlert('Despesa atualizada com sucesso!', 'success');
+                } else {
+                    despesaData.dataCriacao = serverTimestamp();
+                    await addDoc(collection(db, 'despesas'), despesaData);
+                    showAlert('Despesa cadastrada com sucesso!', 'success');
+                }
+                
+                closeModal();
+                loadDespesas();
+                loadEstatisticas();
+                
+            } catch (error) {
+                console.error('Erro ao salvar despesa:', error);
+                showAlert('Erro ao salvar despesa. Tente novamente.', 'error');
+            }
+        });
+
+        window.editDespesa = function(despesaId) {
+            openModal(despesaId);
+        };
+
+        window.deleteDespesa = async function(despesaId, numeroNF) {
+            if (confirm(`Tem certeza que deseja excluir a nota fiscal ${numeroNF}?`)) {
+                try {
+                    await deleteDoc(doc(db, 'despesas', despesaId));
+                    showAlert('Despesa excluída com sucesso!', 'success');
+                    loadDespesas();
+                    loadEstatisticas();
+                } catch (error) {
+                    console.error('Erro ao excluir despesa:', error);
+                    showAlert('Erro ao excluir despesa. Tente novamente.', 'error');
+                }
+            }
+        };
+
+        async function loadEstatisticas() {
+            try {
+                const reservasSnapshot = await getDocs(collection(db, 'reservas'));
+                let receitaTotal = 0;
+                reservasSnapshot.forEach((docSnap) => {
+                    const reserva = docSnap.data();
+                    if (reserva.status === 'ativa' || reserva.status === 'confirmada' || reserva.status === 'finalizada') {
+                        receitaTotal += reserva.valorTotal || 0;
+                    }
+                });
+                document.getElementById('receitaTotal').textContent = `R$ ${receitaTotal.toFixed(2)}`;
+
+                const despesasSnapshot = await getDocs(collection(db, 'despesas'));
+                let despesaTotal = 0;
+                despesasSnapshot.forEach((docSnap) => {
+                    const despesa = docSnap.data();
+                    despesaTotal += despesa.valor || 0;
+                });
+                document.getElementById('despesaTotal').textContent = `R$ ${despesaTotal.toFixed(2)}`;
+
+                const saldoLiquido = receitaTotal - despesaTotal;
+                const saldoElement = document.getElementById('saldoLiquido');
+                const saldoCard = document.getElementById('saldoCard');
+                
+                saldoElement.textContent = `R$ ${saldoLiquido.toFixed(2)}`;
+                
+                if (saldoLiquido > 0) {
+                    saldoCard.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+                } else if (saldoLiquido < 0) {
+                    saldoCard.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+                } else {
+                    saldoCard.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
+                }
+
+            } catch (error) {
+                console.error('Erro ao carregar estatísticas:', error);
+            }
+        }
+
+        async function loadDespesas() {
+            loading.classList.add('show');
+            const tableBody = document.getElementById('despesasTableBody');
+            
+            try {
+                const q = query(collection(db, 'despesas'), orderBy('dataEmissao', 'desc'));
+                const querySnapshot = await getDocs(q);
+
+                if (querySnapshot.empty) {
+                    tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Nenhuma despesa cadastrada</td></tr>';
+                    document.getElementById('totalDespesasTabela').textContent = 'R$ 0,00';
+                    loading.classList.remove('show');
+                    return;
+                }
+
+                tableBody.innerHTML = '';
+                let totalDespesas = 0;
+                
+                querySnapshot.forEach((docSnap) => {
+                    const despesa = docSnap.data();
+                    const row = document.createElement('tr');
+                    
+                    const dataEmissao = despesa.dataEmissao ? new Date(despesa.dataEmissao.seconds * 1000).toLocaleDateString('pt-BR') : '-';
+                    
+                    row.innerHTML = `
+                        <td>${dataEmissao}</td>
+                        <td><span class="badge badge-primary">${despesa.categoria}</span></td>
+                        <td>${despesa.fornecedor}</td>
+                        <td>${despesa.numeroNF}</td>
+                        <td>${despesa.descricao.substring(0, 50)}${despesa.descricao.length > 50 ? '...' : ''}</td>
+                        <td style="font-weight: 600; color: #ef4444;">R$ ${despesa.valor.toFixed(2)}</td>
+                        <td class="table-actions">
+                            <button class="btn btn-warning" onclick="editDespesa('${docSnap.id}')">Editar</button>
+                            <button class="btn btn-danger" onclick="deleteDespesa('${docSnap.id}', '${despesa.numeroNF}')">Excluir</button>
+                        </td>
+                    `;
+                    
+                    tableBody.appendChild(row);
+                    totalDespesas += despesa.valor || 0;
+                });
+                
+                document.getElementById('totalDespesasTabela').textContent = `R$ ${totalDespesas.toFixed(2)}`;
+
+            } catch (error) {
+                console.error('Erro ao carregar despesas:', error);
+                tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Erro ao carregar despesas</td></tr>';
+            } finally {
+                loading.classList.remove('show');
+            }
+        }
+
+        window.exportarPDF = async function() {
+            try {
+                const reservasSnapshot = await getDocs(collection(db, 'reservas'));
+                const despesasSnapshot = await getDocs(collection(db, 'despesas'));
+
+                let receitaTotal = 0;
+                let despesaTotal = 0;
+
+                let htmlContent = `
+                    <html>
+                    <head>
+                        <meta charset="UTF-8">
+                        <title>Relatório Financeiro - ReservaAí</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; padding: 40px; }
+                            h1 { color: #2563eb; border-bottom: 3px solid #2563eb; padding-bottom: 10px; }
+                            h2 { color: #1e40af; margin-top: 30px; }
+                            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                            th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+                            th { background-color: #2563eb; color: white; }
+                            .total { font-weight: bold; font-size: 18px; margin: 20px 0; }
+                            .receita { color: #10b981; }
+                            .despesa { color: #ef4444; }
+                            .saldo { color: #3b82f6; font-size: 20px; }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>RELATÓRIO FINANCEIRO - RESERVAÁI</h1>
+                        <p><strong>Gerado em:</strong> ${new Date().toLocaleString('pt-BR')}</p>
+                        
+                        <h2>RECEITAS (Reservas)</h2>
+                        <table>
+                            <tr>
+                                <th>Data Check-in</th>
+                                <th>Cliente</th>
+                                <th>Quarto</th>
+                                <th>Valor</th>
+                            </tr>
+                `;
+
+                reservasSnapshot.forEach((docSnap) => {
+                    const reserva = docSnap.data();
+                    if (reserva.status === 'ativa' || reserva.status === 'confirmada' || reserva.status === 'finalizada') {
+                        const checkIn = reserva.checkIn ? new Date(reserva.checkIn.seconds * 1000).toLocaleDateString('pt-BR') : '-';
+                        htmlContent += `
+                            <tr>
+                                <td>${checkIn}</td>
+                                <td>${reserva.nomeCliente}</td>
+                                <td>${reserva.numeroQuarto}</td>
+                                <td>R$ ${reserva.valorTotal.toFixed(2)}</td>
+                            </tr>
+                        `;
+                        receitaTotal += reserva.valorTotal || 0;
+                    }
+                });
+
+                htmlContent += `
+                        </table>
+                        <p class="total receita">TOTAL DE RECEITAS: R$ ${receitaTotal.toFixed(2)}</p>
+                        
+                        <h2>DESPESAS (Notas Fiscais)</h2>
+                        <table>
+                            <tr>
+                                <th>Data</th>
+                                <th>Categoria</th>
+                                <th>Fornecedor</th>
+                                <th>NF</th>
+                                <th>Valor</th>
+                            </tr>
+                `;
+
+                despesasSnapshot.forEach((docSnap) => {
+                    const despesa = docSnap.data();
+                    const dataEmissao = despesa.dataEmissao ? new Date(despesa.dataEmissao.seconds * 1000).toLocaleDateString('pt-BR') : '-';
+                    htmlContent += `
+                        <tr>
+                            <td>${dataEmissao}</td>
+                            <td>${despesa.categoria}</td>
+                            <td>${despesa.fornecedor}</td>
+                            <td>${despesa.numeroNF}</td>
+                            <td>R$ ${despesa.valor.toFixed(2)}</td>
+                        </tr>
+                    `;
+                    despesaTotal += despesa.valor || 0;
+                });
+
+                const saldoLiquido = receitaTotal - despesaTotal;
+
+                htmlContent += `
+                        </table>
+                        <p class="total despesa">TOTAL DE DESPESAS: R$ ${despesaTotal.toFixed(2)}</p>
+                        
+                        <hr style="margin: 30px 0;">
+                        <p class="total saldo">SALDO LÍQUIDO: R$ ${saldoLiquido.toFixed(2)}</p>
+                    </body>
+                    </html>
+                `;
+
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(htmlContent);
+                printWindow.document.close();
+                printWindow.print();
+
+            } catch (error) {
+                console.error('Erro ao gerar PDF:', error);
+                showAlert('Erro ao gerar relatório PDF. Tente novamente.', 'error');
+            }
+        };
+
+        loadEstatisticas();
+        loadDespesas();
+    </script>
+</body>
+</html>
+
