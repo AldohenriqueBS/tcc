@@ -73,7 +73,7 @@ body {
 
 .logo{
   width: 100px;
-  height: 150px; /* Altura de referência para o contêiner */
+  height: 100px; /* Altura de referência para o contêiner */
   display: flex;
   align-items: center;
 }
@@ -97,13 +97,14 @@ body {
 
 /* Navegação moderna */
 .nav {
-  background: rgba(255, 255, 255, 0);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0); /*Background*/
+  backdrop-filter: blur(10px); /*Background-blur*/
+  -webkit-backdrop-filter: blur(10px); /*Background-blur*/
   box-shadow: var(--shadow-md);
   margin-bottom: 30px;
   border-radius: 25px;
-  margin: 10px; 
+  margin: 10px;
+  margin-left: 5%; 
   padding: 10px;
   border-radius: 25px;
 }
