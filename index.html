@@ -5,12 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - ReservaAí</title>
     <link rel="stylesheet" href="styles.css">
-</head>
+    </head>
+
 <body>
     <header class="header">
         <div class="header-content">
-            <div class="logo"><img src="./src/components/logo2.png" alt=""></div>
-            
+            <!-- Logo -->
+            <div class="logo">
+                <img src="./src/components/logo2.png" alt="Logo ReservaAí">
+            </div>
+            <!-- NavBar -->
             <nav class="nav">
                 <ul class="nav-list">
                     <li class="nav-item"><a href="index.html" class="nav-link active">Dashboard</a></li>
@@ -21,19 +25,21 @@
                     <li class="nav-item"><a href="relatorios.html" class="nav-link">Relatórios</a></li>
                 </ul>
             </nav>
-            
+            <!-- Usuário -->
             <div class="user-info">
                 <span class="user-name">Olá, <span id="userName">Usuário</span></span>
                 <button class="btn btn-logout" onclick="logout()">Sair</button>
             </div>
         </div>
     </header>
-
+<!-- Cards -->
     <div class="container">
+        
         <div class="card">
             <h1 class="card-title">Dashboard</h1>
             
             <div class="grid">
+                
                 <div class="stat-card">
                     <div class="stat-number" id="totalQuartos">0</div>
                     <div class="stat-label">Total de Quartos</div>
@@ -55,10 +61,11 @@
                 </div>
             </div>
         </div>
-
+<!-- Status Quartos -->
         <div class="card">
             <h2 class="card-title">Status de Limpeza dos Quartos</h2>
             <div class="grid">
+                
                 <div class="stat-card" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
                     <div class="stat-number" id="quartosLimpos">0</div>
                     <div class="stat-label">Quartos Limpos (Prontos)</div>
@@ -75,13 +82,14 @@
                 </div>
             </div>
         </div>
-
+<!-- Reservas recentes -->
         <div class="card">
             <h2 class="card-title">Reservas Recentes</h2>
-            <div id="loading" class="loading">
-                <div class="spinner"></div>
-                <p>Carregando dados...</p>
+            
+            <div id="loading" class="loading"> 
+                <div class="spinner"></div> <p>Carregando dados...</p>
             </div>
+            
             <div class="table-container">
                 <table class="table" id="reservasTable">
                     <thead>
@@ -101,58 +109,66 @@
                 </table>
             </div>
         </div>
-    </div>
-
-    <script type="module">
-        import { db } from './firebase-config.js';
+    </div> <script type="module">
+        // Importa as funções do Firebase
+        import { db } from './firebase-config.js'; // Importa o banco
         import { collection, getDocs, query, orderBy, limit, where } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
 
-        // Verifica autenticação
+        // --- AUTENTICAÇÃO ---
+        // Se não houver 'userId' no localStorage, o usuário não está logado
         if (!localStorage.getItem('userId')) {
+            // Redireciona para a página de login
             window.location.href = 'login.html';
         }
 
-        // Exibe nome do usuário
+        // --- USUÁRIO ---
+        // Puxa o nome do usuário do localStorage ou usa 'Usuário' como padrão
         const userName = localStorage.getItem('userName') || 'Usuário';
+        // Atualiza o HTML
         document.getElementById('userName').textContent = userName;
 
-        // Função de logout
+        // --- LOGOUT ---
+        // Define a função 'logout'
         window.logout = function() {
+            // Limpa todos os dados do localStorage
             localStorage.clear();
+            // Redireciona para a página de login
             window.location.href = 'login.html';
         };
 
-        // Carrega estatísticas
+        // --- CARREGAR ESTATÍSTICAS ---
         async function loadStatistics() {
             try {
-                // Total de quartos
+                // 1. Total de quartos
                 const quartosSnapshot = await getDocs(collection(db, 'quartos'));
-                const totalQuartos = quartosSnapshot.size;
+                const totalQuartos = quartosSnapshot.size; // 'size' retorna o número de documentos
                 document.getElementById('totalQuartos').textContent = totalQuartos;
 
-                // Quartos disponíveis
+                // 2. Quartos disponíveis
                 const quartosDisponiveisQuery = query(collection(db, 'quartos'), where('status', '==', 'disponivel'));
                 const quartosDisponiveisSnapshot = await getDocs(quartosDisponiveisQuery);
                 document.getElementById('quartosDisponiveis').textContent = quartosDisponiveisSnapshot.size;
 
-                // Total de clientes
+                // 3. Total de clientes
                 const clientesSnapshot = await getDocs(collection(db, 'clientes'));
                 document.getElementById('totalClientes').textContent = clientesSnapshot.size;
 
-                // Reservas ativas
+                // 4. Reservas ativas
                 const reservasAtivasQuery = query(collection(db, 'reservas'), where('status', '==', 'ativa'));
                 const reservasAtivasSnapshot = await getDocs(reservasAtivasQuery);
                 document.getElementById('reservasAtivas').textContent = reservasAtivasSnapshot.size;
 
-                // Estatísticas de limpeza
+                // 5. Estatísticas de limpeza
                 let quartosLimpos = 0;
                 let quartosSujos = 0;
                 let quartosEmLimpeza = 0;
 
                 quartosSnapshot.forEach((doc) => {
-                    const quarto = doc.data();
-                    const statusLimpeza = quarto.statusLimpeza || 'limpo';
+                    const quarto = doc.data(); // Pega os dados do quarto
+                    // Define 'limpo' como padrão se o status tiver vazio
+                    const statusLimpeza = quarto.statusLimpeza || 'limpo'; 
                     
+                    // Incrementa o contador correspondente
                     if (statusLimpeza === 'limpo') {
                         quartosLimpos++;
                     } else if (statusLimpeza === 'sujo') {
@@ -162,47 +178,63 @@
                     }
                 });
 
+                // Atualiza o HTML com os totais de limpeza
                 document.getElementById('quartosLimpos').textContent = quartosLimpos;
                 document.getElementById('quartosSujos').textContent = quartosSujos;
                 document.getElementById('quartosEmLimpeza').textContent = quartosEmLimpeza;
 
             } catch (error) {
+                // Em caso de erro, exibe
                 console.error('Erro ao carregar estatísticas:', error);
             }
         }
 
-        // Carrega reservas recentes
+        // --- RESERVAS RECENTES ---
         async function loadRecentReservations() {
+            // Pega os elementos
             const loading = document.getElementById('loading');
             const tableBody = document.getElementById('reservasTableBody');
             
+            // Mostra o indicador de Carregando
             loading.classList.add('show');
             
             try {
-                const q = query(collection(db, 'reservas'), orderBy('dataCriacao', 'desc'), limit(5));
+                // Cria uma consulta para a coleção 'reservas'
+                const q = query(
+                    collection(db, 'reservas'), 
+                    orderBy('dataCriacao', 'desc'), // Ordena pela data de criação (mais novas primeiro)
+                    limit(5) // Limita aos 5 resultados mais recentes
+                );
+                // Executa
                 const querySnapshot = await getDocs(q);
 
+                // Verifica se a consulta retornou algum documento
                 if (querySnapshot.empty) {
+                    // Se estiver vazio, exibe a mensagem na tabela
                     tableBody.innerHTML = '<tr><td colspan="5" class="text-center">Nenhuma reserva encontrada</td></tr>';
-                    return;
+                    return; // Encerra a função
                 }
 
+                // Se houver resultados, limpa o corpo da tabela
                 tableBody.innerHTML = '';
                 
+                // Itera sobre cada documento de reserva retornado
                 for (const doc of querySnapshot.docs) {
-                    const reserva = doc.data();
-                    const row = document.createElement('tr');
+                    const reserva = doc.data(); // Pega os dados da reserva
+                    const row = document.createElement('tr'); // Cria uma nova linha
                     
                     // Formata as datas
+                    // Verifica se o campo existe antes de tentar formatar
                     const checkIn = reserva.checkIn ? new Date(reserva.checkIn.seconds * 1000).toLocaleDateString('pt-BR') : '-';
                     const checkOut = reserva.checkOut ? new Date(reserva.checkOut.seconds * 1000).toLocaleDateString('pt-BR') : '-';
                     
-                    // Define a classe do badge de status
-                    let statusClass = 'badge-primary';
-                    if (reserva.status === 'ativa') statusClass = 'badge-success';
-                    else if (reserva.status === 'cancelada') statusClass = 'badge-danger';
-                    else if (reserva.status === 'finalizada') statusClass = 'badge-warning';
+                    // Define a classe CSS do status
+                    let statusClass = 'badge-primary'; // Padrão (ex: pendente)
+                    if (reserva.status === 'ativa') statusClass = 'badge-success'; // Verde
+                    else if (reserva.status === 'cancelada') statusClass = 'badge-danger'; // Vermelho
+                    else if (reserva.status === 'finalizada') statusClass = 'badge-warning'; // Laranja
                     
+                    // Preenche o HTML da linha com os dados
                     row.innerHTML = `
                         <td>${reserva.nomeCliente || '-'}</td>
                         <td>${reserva.numeroQuarto || '-'}</td>
@@ -211,21 +243,25 @@
                         <td><span class="badge ${statusClass}">${reserva.status || '-'}</span></td>
                     `;
                     
+                    // Adiciona a linha criada a tabela
                     tableBody.appendChild(row);
                 }
 
             } catch (error) {
+                // Em caso de erro, exibe no console e na tabela
                 console.error('Erro ao carregar reservas:', error);
                 tableBody.innerHTML = '<tr><td colspan="5" class="text-center">Erro ao carregar reservas</td></tr>';
             } finally {
+                // Esconde o indicador de "Carregando"
                 loading.classList.remove('show');
             }
         }
 
-        // Carrega dados ao iniciar
+        // --- EXECUTA ---
+        // Chama as funções para carregar os dados assim que a página for carregada
         loadStatistics();
         loadRecentReservations();
     </script>
 </body>
-</html>
 
+</html>
