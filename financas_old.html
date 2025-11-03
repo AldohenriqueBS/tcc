@@ -5,73 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Finanças - ReservaAí</title>
     <link rel="stylesheet" href="styles.css">
-    <style>
-        /* Estilos adicionais para a nova página de finanças */
-        .stat-card {
-            padding: 20px;
-            border-radius: 8px;
-            color: white;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease;
-        }
-        .stat-card:hover {
-            transform: translateY(-5px);
-        }
-        .stat-number {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin-bottom: 5px;
-        }
-        .stat-label {
-            font-size: 1rem;
-            opacity: 0.8;
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        .table-actions .btn {
-            margin-right: 5px;
-        }
-        .alert-error {
-            background-color: #fef2f2;
-            color: #ef4444;
-            border: 1px solid #fca5a5;
-        }
-        .alert-success {
-            background-color: #f0fdf4;
-            color: #10b981;
-            border: 1px solid #a7f3d0;
-        }
-        .show {
-            display: block !important;
-        }
-        .loading {
-            text-align: center;
-            padding: 20px;
-            display: none;
-        }
-        .spinner {
-            border: 4px solid rgba(0, 0, 0, 0.1);
-            border-top: 4px solid #2563eb;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
 </head>
 <body>
     <header class="header">
         <div class="header-content">
-            <div class="logo"><img src="./src/components/logo2.png" alt="ReservaAí Logo"></div>
+            <div class="logo"><img src="./src/components/logo2.png" alt=""></div>
             
             <nav class="nav">
                 <ul class="nav-list">
@@ -79,8 +17,8 @@
                     <li class="nav-item"><a href="quartos.html" class="nav-link">Quartos</a></li>
                     <li class="nav-item"><a href="clientes.html" class="nav-link">Clientes</a></li>
                     <li class="nav-item"><a href="reservas.html" class="nav-link">Reservas</a></li>
-                    <li class="nav-item"><a href="financas.html" class="nav-link active">Finanças</a></li>
-
+                    <li class="nav-item"><a href="financas_old.html" class="nav-link active">Finanças</a></li>
+                    <li class="nav-item"><a href="relatorios.html" class="nav-link">Relatórios</a></li>
                 </ul>
             </nav>
             
@@ -117,13 +55,14 @@
             <div class="flex-between">
                 <h2 class="card-title">Notas Fiscais e Despesas</h2>
                 <div class="flex-end">
+                    <button class="btn btn-success" onclick="exportarPDF()">📄 Exportar PDF</button>
                     <button class="btn btn-primary" onclick="openModal()">+ Nova Despesa</button>
                 </div>
             </div>
             
-            <div id="alert" class="alert" style="display: none;"></div>
+            <div id="alert" class="alert"></div>
             
-            <div id="loading" class="loading show">
+            <div id="loading" class="loading">
                 <div class="spinner"></div>
                 <p>Carregando dados...</p>
             </div>
@@ -209,6 +148,16 @@
                 </div>
                 
                 <div class="form-group">
+                    <label class="form-label">Série da Nota Fiscal</label>
+                    <input type="text" id="serieNF" class="form-input">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Chave de Acesso (NFe)</label>
+                    <input type="text" id="chaveAcesso" class="form-input" maxlength="44">
+                </div>
+                
+                <div class="form-group">
                     <label class="form-label">Descrição Detalhada</label>
                     <textarea id="descricao" class="form-textarea" required></textarea>
                 </div>
@@ -251,9 +200,8 @@
 
     <script type="module">
         import { db } from './firebase-config.js';
-        import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy, getDoc } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+        import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
 
-        // 1. Autenticação e Logout
         if (!localStorage.getItem('userId')) {
             window.location.href = 'login.html';
         }
@@ -266,61 +214,42 @@
             window.location.href = 'login.html';
         };
 
-        // 2. Elementos DOM
         const modal = document.getElementById('despesaModal');
         const despesaForm = document.getElementById('despesaForm');
         const alertDiv = document.getElementById('alert');
         const loading = document.getElementById('loading');
-        const tableBody = document.getElementById('despesasTableBody');
 
-        // 3. Funções de Utilidade
-        function formatCurrency(value) {
-            return `R$ ${parseFloat(value).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
-        }
-
-        function formatDate(timestamp) {
-            if (!timestamp) return '-';
-            const date = timestamp.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp);
-            return date.toLocaleDateString('pt-BR');
-        }
+        // Máscara CNPJ
+        document.getElementById('cnpjFornecedor').addEventListener('input', function(e) {
+            let v = e.target.value.replace(/\D/g, '');
+            if (v.length <= 14) {
+                v = v.replace(/^(\d{2})(\d)/, '$1.$2');
+                v = v.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+                v = v.replace(/\.(\d{3})(\d)/, '.$1/$2');
+                v = v.replace(/(\d{4})(\d)/, '$1-$2');
+                e.target.value = v;
+            }
+        });
 
         function showAlert(message, type) {
             alertDiv.textContent = message;
             alertDiv.className = `alert alert-${type} show`;
-            alertDiv.style.display = 'block';
             setTimeout(() => {
-                alertDiv.classList.remove('show');
-                alertDiv.style.display = 'none';
+                alertDiv.className = 'alert';
             }, 5000);
         }
 
-        // Máscara CNPJ (Melhorada para evitar erro de regex)
-        document.getElementById('cnpjFornecedor').addEventListener('input', function(e) {
-            let v = e.target.value.replace(/\D/g, '');
-            if (v.length > 14) v = v.substring(0, 14); // Limita a 14 dígitos
-            
-            v = v.replace(/^(\d{2})(\d)/, '$1.$2');
-            v = v.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
-            v = v.replace(/\.(\d{3})(\d)/, '.$1/$2');
-            v = v.replace(/(\d{4})(\d)/, '$1-$2');
-            
-            e.target.value = v;
-        });
-
-        // 4. Modal
-        window.openModal = async function(despesaId = null) {
-            despesaForm.reset();
-            document.getElementById('despesaId').value = '';
+        window.openModal = function(despesaId = null) {
+            modal.classList.add('show');
             document.getElementById('modalTitle').textContent = despesaId ? 'Editar Despesa' : 'Nova Despesa';
             
             if (despesaId) {
-                await loadDespesaData(despesaId);
+                loadDespesaData(despesaId);
             } else {
-                // Define a data de emissão como a data atual por padrão
+                despesaForm.reset();
+                document.getElementById('despesaId').value = '';
                 document.getElementById('dataEmissao').value = new Date().toISOString().split('T')[0];
             }
-            
-            modal.classList.add('show');
         };
 
         window.closeModal = function() {
@@ -329,47 +258,37 @@
         };
 
         async function loadDespesaData(despesaId) {
-            try {
-                const docRef = doc(db, 'despesas', despesaId);
-                const docSnap = await getDoc(docRef);
-
-                if (docSnap.exists()) {
+            const despesasSnapshot = await getDocs(collection(db, 'despesas'));
+            despesasSnapshot.forEach((docSnap) => {
+                if (docSnap.id === despesaId) {
                     const despesa = docSnap.data();
                     document.getElementById('despesaId').value = docSnap.id;
                     
-                    // Conversão de Timestamp para string de data (YYYY-MM-DD)
-                    if (despesa.dataEmissao && despesa.dataEmissao.toDate) {
-                        document.getElementById('dataEmissao').value = despesa.dataEmissao.toDate().toISOString().split('T')[0];
-                    } else if (despesa.dataEmissao) {
-                        // Caso seja um objeto {seconds: X, nanoseconds: Y}
-                        document.getElementById('dataEmissao').value = new Date(despesa.dataEmissao.seconds * 1000).toISOString().split('T')[0];
+                    if (despesa.dataEmissao) {
+                        const dataEmissao = new Date(despesa.dataEmissao.seconds * 1000);
+                        document.getElementById('dataEmissao').value = dataEmissao.toISOString().split('T')[0];
                     }
                     
                     document.getElementById('categoria').value = despesa.categoria || '';
                     document.getElementById('fornecedor').value = despesa.fornecedor || '';
                     document.getElementById('cnpjFornecedor').value = despesa.cnpjFornecedor || '';
                     document.getElementById('numeroNF').value = despesa.numeroNF || '';
+                    document.getElementById('serieNF').value = despesa.serieNF || '';
+                    document.getElementById('chaveAcesso').value = despesa.chaveAcesso || '';
                     document.getElementById('descricao').value = despesa.descricao || '';
                     document.getElementById('valor').value = despesa.valor || '';
                     document.getElementById('formaPagamento').value = despesa.formaPagamento || '';
                     
-                    if (despesa.dataPagamento && despesa.dataPagamento.toDate) {
-                        document.getElementById('dataPagamento').value = despesa.dataPagamento.toDate().toISOString().split('T')[0];
-                    } else if (despesa.dataPagamento) {
-                        document.getElementById('dataPagamento').value = new Date(despesa.dataPagamento.seconds * 1000).toISOString().split('T')[0];
+                    if (despesa.dataPagamento) {
+                        const dataPagamento = new Date(despesa.dataPagamento.seconds * 1000);
+                        document.getElementById('dataPagamento').value = dataPagamento.toISOString().split('T')[0];
                     }
                     
                     document.getElementById('observacoes').value = despesa.observacoes || '';
-                } else {
-                    showAlert('Despesa não encontrada.', 'error');
                 }
-            } catch (error) {
-                console.error('Erro ao carregar dados da despesa:', error);
-                showAlert('Erro ao carregar dados da despesa.', 'error');
-            }
+            });
         }
 
-        // 5. CRUD de Despesas
         despesaForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -377,31 +296,27 @@
             const dataEmissaoValue = document.getElementById('dataEmissao').value;
             const dataPagamentoValue = document.getElementById('dataPagamento').value;
             
-            // Tratamento de datas para evitar problemas de fuso horário
-            const dataEmissaoDate = new Date(dataEmissaoValue + 'T00:00:00');
-            const dataPagamentoDate = dataPagamentoValue ? new Date(dataPagamentoValue + 'T00:00:00') : null;
-
             const despesaData = {
-                dataEmissao: dataEmissaoDate,
+                dataEmissao: new Date(dataEmissaoValue + 'T12:00:00'),
                 categoria: document.getElementById('categoria').value,
                 fornecedor: document.getElementById('fornecedor').value,
                 cnpjFornecedor: document.getElementById('cnpjFornecedor').value,
                 numeroNF: document.getElementById('numeroNF').value,
+                serieNF: document.getElementById('serieNF').value,
+                chaveAcesso: document.getElementById('chaveAcesso').value,
                 descricao: document.getElementById('descricao').value,
                 valor: parseFloat(document.getElementById('valor').value),
                 formaPagamento: document.getElementById('formaPagamento').value,
-                dataPagamento: dataPagamentoDate,
+                dataPagamento: dataPagamentoValue ? new Date(dataPagamentoValue + 'T12:00:00') : null,
                 observacoes: document.getElementById('observacoes').value,
                 dataAtualizacao: serverTimestamp()
             };
 
             try {
                 if (despesaId) {
-                    // Atualizar
                     await updateDoc(doc(db, 'despesas', despesaId), despesaData);
                     showAlert('Despesa atualizada com sucesso!', 'success');
                 } else {
-                    // Criar
                     despesaData.dataCriacao = serverTimestamp();
                     await addDoc(collection(db, 'despesas'), despesaData);
                     showAlert('Despesa cadastrada com sucesso!', 'success');
@@ -413,7 +328,7 @@
                 
             } catch (error) {
                 console.error('Erro ao salvar despesa:', error);
-                showAlert('Erro ao salvar despesa. Verifique o console para detalhes.', 'error');
+                showAlert('Erro ao salvar despesa. Tente novamente.', 'error');
             }
         });
 
@@ -430,25 +345,22 @@
                     loadEstatisticas();
                 } catch (error) {
                     console.error('Erro ao excluir despesa:', error);
-                    showAlert('Erro ao excluir despesa. Verifique o console para detalhes.', 'error');
+                    showAlert('Erro ao excluir despesa. Tente novamente.', 'error');
                 }
             }
         };
 
-        // 6. Carregar Estatísticas
         async function loadEstatisticas() {
             try {
                 const reservasSnapshot = await getDocs(collection(db, 'reservas'));
                 let receitaTotal = 0;
-                
                 reservasSnapshot.forEach((docSnap) => {
                     const reserva = docSnap.data();
-                    // Inclui apenas reservas que geram receita
                     if (reserva.status === 'ativa' || reserva.status === 'confirmada' || reserva.status === 'finalizada') {
                         receitaTotal += reserva.valorTotal || 0;
                     }
                 });
-                document.getElementById('receitaTotal').textContent = formatCurrency(receitaTotal);
+                document.getElementById('receitaTotal').textContent = `R$ ${receitaTotal.toFixed(2)}`;
 
                 const despesasSnapshot = await getDocs(collection(db, 'despesas'));
                 let despesaTotal = 0;
@@ -456,41 +368,39 @@
                     const despesa = docSnap.data();
                     despesaTotal += despesa.valor || 0;
                 });
-                document.getElementById('despesaTotal').textContent = formatCurrency(despesaTotal);
+                document.getElementById('despesaTotal').textContent = `R$ ${despesaTotal.toFixed(2)}`;
 
                 const saldoLiquido = receitaTotal - despesaTotal;
                 const saldoElement = document.getElementById('saldoLiquido');
                 const saldoCard = document.getElementById('saldoCard');
                 
-                saldoElement.textContent = formatCurrency(saldoLiquido);
+                saldoElement.textContent = `R$ ${saldoLiquido.toFixed(2)}`;
                 
-                // Atualiza a cor do card de saldo
                 if (saldoLiquido > 0) {
-                    saldoCard.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)'; // Verde
+                    saldoCard.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
                 } else if (saldoLiquido < 0) {
-                    saldoCard.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'; // Vermelho
+                    saldoCard.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
                 } else {
-                    saldoCard.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)'; // Azul
+                    saldoCard.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
                 }
 
             } catch (error) {
                 console.error('Erro ao carregar estatísticas:', error);
-                showAlert('Erro ao carregar estatísticas financeiras.', 'error');
             }
         }
 
-        // 7. Carregar Tabela de Despesas
         async function loadDespesas() {
             loading.classList.add('show');
+            const tableBody = document.getElementById('despesasTableBody');
             
             try {
-                // Ordena por data de emissão decrescente
                 const q = query(collection(db, 'despesas'), orderBy('dataEmissao', 'desc'));
                 const querySnapshot = await getDocs(q);
 
                 if (querySnapshot.empty) {
                     tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Nenhuma despesa cadastrada</td></tr>';
-                    document.getElementById('totalDespesasTabela').textContent = formatCurrency(0);
+                    document.getElementById('totalDespesasTabela').textContent = 'R$ 0,00';
+                    loading.classList.remove('show');
                     return;
                 }
 
@@ -501,18 +411,18 @@
                     const despesa = docSnap.data();
                     const row = document.createElement('tr');
                     
-                    const dataEmissao = formatDate(despesa.dataEmissao);
+                    const dataEmissao = despesa.dataEmissao ? new Date(despesa.dataEmissao.seconds * 1000).toLocaleDateString('pt-BR') : '-';
                     
                     row.innerHTML = `
                         <td>${dataEmissao}</td>
                         <td><span class="badge badge-primary">${despesa.categoria}</span></td>
                         <td>${despesa.fornecedor}</td>
-                        <td>${despesa.numeroNF || '-'}</td>
+                        <td>${despesa.numeroNF}</td>
                         <td>${despesa.descricao.substring(0, 50)}${despesa.descricao.length > 50 ? '...' : ''}</td>
-                        <td style="font-weight: 600; color: #ef4444;">${formatCurrency(despesa.valor)}</td>
+                        <td style="font-weight: 600; color: #ef4444;">R$ ${despesa.valor.toFixed(2)}</td>
                         <td class="table-actions">
                             <button class="btn btn-warning" onclick="editDespesa('${docSnap.id}')">Editar</button>
-                            <button class="btn btn-danger" onclick="deleteDespesa('${docSnap.id}', '${despesa.numeroNF || 'N/A'}')">Excluir</button>
+                            <button class="btn btn-danger" onclick="deleteDespesa('${docSnap.id}', '${despesa.numeroNF}')">Excluir</button>
                         </td>
                     `;
                     
@@ -520,20 +430,128 @@
                     totalDespesas += despesa.valor || 0;
                 });
                 
-                document.getElementById('totalDespesasTabela').textContent = formatCurrency(totalDespesas);
+                document.getElementById('totalDespesasTabela').textContent = `R$ ${totalDespesas.toFixed(2)}`;
 
             } catch (error) {
                 console.error('Erro ao carregar despesas:', error);
                 tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Erro ao carregar despesas</td></tr>';
-                showAlert('Erro ao carregar a lista de despesas.', 'error');
             } finally {
                 loading.classList.remove('show');
             }
         }
 
-        // 8. Inicialização
+        window.exportarPDF = async function() {
+            try {
+                const reservasSnapshot = await getDocs(collection(db, 'reservas'));
+                const despesasSnapshot = await getDocs(collection(db, 'despesas'));
+
+                let receitaTotal = 0;
+                let despesaTotal = 0;
+
+                let htmlContent = `
+                    <html>
+                    <head>
+                        <meta charset="UTF-8">
+                        <title>Relatório Financeiro - ReservaAí</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; padding: 40px; }
+                            h1 { color: #2563eb; border-bottom: 3px solid #2563eb; padding-bottom: 10px; }
+                            h2 { color: #1e40af; margin-top: 30px; }
+                            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                            th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+                            th { background-color: #2563eb; color: white; }
+                            .total { font-weight: bold; font-size: 18px; margin: 20px 0; }
+                            .receita { color: #10b981; }
+                            .despesa { color: #ef4444; }
+                            .saldo { color: #3b82f6; font-size: 20px; }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>RELATÓRIO FINANCEIRO - RESERVAÁI</h1>
+                        <p><strong>Gerado em:</strong> ${new Date().toLocaleString('pt-BR')}</p>
+                        
+                        <h2>RECEITAS (Reservas)</h2>
+                        <table>
+                            <tr>
+                                <th>Data Check-in</th>
+                                <th>Cliente</th>
+                                <th>Quarto</th>
+                                <th>Valor</th>
+                            </tr>
+                `;
+
+                reservasSnapshot.forEach((docSnap) => {
+                    const reserva = docSnap.data();
+                    if (reserva.status === 'ativa' || reserva.status === 'confirmada' || reserva.status === 'finalizada') {
+                        const checkIn = reserva.checkIn ? new Date(reserva.checkIn.seconds * 1000).toLocaleDateString('pt-BR') : '-';
+                        htmlContent += `
+                            <tr>
+                                <td>${checkIn}</td>
+                                <td>${reserva.nomeCliente}</td>
+                                <td>${reserva.numeroQuarto}</td>
+                                <td>R$ ${reserva.valorTotal.toFixed(2)}</td>
+                            </tr>
+                        `;
+                        receitaTotal += reserva.valorTotal || 0;
+                    }
+                });
+
+                htmlContent += `
+                        </table>
+                        <p class="total receita">TOTAL DE RECEITAS: R$ ${receitaTotal.toFixed(2)}</p>
+                        
+                        <h2>DESPESAS (Notas Fiscais)</h2>
+                        <table>
+                            <tr>
+                                <th>Data</th>
+                                <th>Categoria</th>
+                                <th>Fornecedor</th>
+                                <th>NF</th>
+                                <th>Valor</th>
+                            </tr>
+                `;
+
+                despesasSnapshot.forEach((docSnap) => {
+                    const despesa = docSnap.data();
+                    const dataEmissao = despesa.dataEmissao ? new Date(despesa.dataEmissao.seconds * 1000).toLocaleDateString('pt-BR') : '-';
+                    htmlContent += `
+                        <tr>
+                            <td>${dataEmissao}</td>
+                            <td>${despesa.categoria}</td>
+                            <td>${despesa.fornecedor}</td>
+                            <td>${despesa.numeroNF}</td>
+                            <td>R$ ${despesa.valor.toFixed(2)}</td>
+                        </tr>
+                    `;
+                    despesaTotal += despesa.valor || 0;
+                });
+
+                const saldoLiquido = receitaTotal - despesaTotal;
+
+                htmlContent += `
+                        </table>
+                        <p class="total despesa">TOTAL DE DESPESAS: R$ ${despesaTotal.toFixed(2)}</p>
+                        
+                        <hr style="margin: 30px 0;">
+                        <p class="total saldo">SALDO LÍQUIDO: R$ ${saldoLiquido.toFixed(2)}</p>
+                    </body>
+                    </html>
+                `;
+
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(htmlContent);
+                printWindow.document.close();
+                printWindow.print();
+
+            } catch (error) {
+                console.error('Erro ao gerar PDF:', error);
+                showAlert('Erro ao gerar relatório PDF. Tente novamente.', 'error');
+            }
+        };
+
         loadEstatisticas();
         loadDespesas();
     </script>
 </body>
 </html>
+

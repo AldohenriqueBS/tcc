@@ -5,16 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - ReservaAí</title>
     <link rel="stylesheet" href="styles.css">
-    </head>
-
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+</head>
 <body>
     <header class="header">
         <div class="header-content">
-            <!-- Logo -->
-            <div class="logo">
-                <img src="./src/components/logo2.png" alt="Logo ReservaAí">
-            </div>
-            <!-- NavBar -->
+            <div class="logo"><img src="./src/components/logo2.png" alt=""></div>
+            
             <nav class="nav">
                 <ul class="nav-list">
                     <li class="nav-item"><a href="index.html" class="nav-link active">Dashboard</a></li>
@@ -22,74 +19,61 @@
                     <li class="nav-item"><a href="clientes.html" class="nav-link">Clientes</a></li>
                     <li class="nav-item"><a href="reservas.html" class="nav-link">Reservas</a></li>
                     <li class="nav-item"><a href="financas.html" class="nav-link">Finanças</a></li>
-                    <li class="nav-item"><a href="relatorios.html" class="nav-link">Relatórios</a></li>
+
                 </ul>
             </nav>
-            <!-- Usuário -->
+            
             <div class="user-info">
                 <span class="user-name">Olá, <span id="userName">Usuário</span></span>
                 <button class="btn btn-logout" onclick="logout()">Sair</button>
             </div>
         </div>
     </header>
-<!-- Cards -->
+
     <div class="container">
-        
         <div class="card">
             <h1 class="card-title">Dashboard</h1>
             
             <div class="grid">
-                
-                <div class="stat-card">
-                    <div class="stat-number" id="totalQuartos">0</div>
-                    <div class="stat-label">Total de Quartos</div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                    <div class="stat-number" id="receitaTotal">R$ 0,00</div>
+                    <div class="stat-label">Receita Total (Últimos 30 dias)</div>
                 </div>
                 
-                <div class="stat-card">
-                    <div class="stat-number" id="quartosDisponiveis">0</div>
-                    <div class="stat-label">Quartos Disponíveis</div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+                    <div class="stat-number" id="despesaTotal">R$ 0,00</div>
+                    <div class="stat-label">Despesas Totais (Últimos 30 dias)</div>
                 </div>
                 
-                <div class="stat-card">
+                <div class="stat-card" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+                    <div class="stat-number" id="taxaOcupacao">0%</div>
+                    <div class="stat-label">Taxa de Ocupação Média</div>
+                </div>
+                
+                <div class="stat-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
                     <div class="stat-number" id="totalClientes">0</div>
-                    <div class="stat-label">Total de Clientes</div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-number" id="reservasAtivas">0</div>
-                    <div class="stat-label">Reservas Ativas</div>
+                    <div class="stat-label">Total de Clientes Cadastrados</div>
                 </div>
             </div>
         </div>
-<!-- Status Quartos -->
-        <div class="card">
-            <h2 class="card-title">Status de Limpeza dos Quartos</h2>
-            <div class="grid">
-                
-                <div class="stat-card" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
-                    <div class="stat-number" id="quartosLimpos">0</div>
-                    <div class="stat-label">Quartos Limpos (Prontos)</div>
-                </div>
-                
-                <div class="stat-card" style="background: linear-gradient(135deg, #dc3545 0%, #e74c3c 100%);">
-                    <div class="stat-number" id="quartosSujos">0</div>
-                    <div class="stat-label">Quartos Sujos (Aguardando)</div>
-                </div>
-                
-                <div class="stat-card" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);">
-                    <div class="stat-number" id="quartosEmLimpeza">0</div>
-                    <div class="stat-label">Quartos em Limpeza</div>
-                </div>
+
+        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 24px;">
+            <div class="card">
+                <h2 class="card-title">Movimentação Financeira (Receitas vs Despesas)</h2>
+                <canvas id="movimentacaoFinanceiraChart"></canvas>
+            </div>
+            <div class="card">
+                <h2 class="card-title">Ocupação por Tipo de Quarto</h2>
+                <canvas id="ocupacaoQuartosChart"></canvas>
             </div>
         </div>
-<!-- Reservas recentes -->
+
         <div class="card">
             <h2 class="card-title">Reservas Recentes</h2>
-            
-            <div id="loading" class="loading"> 
-                <div class="spinner"></div> <p>Carregando dados...</p>
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p>Carregando dados...</p>
             </div>
-            
             <div class="table-container">
                 <table class="table" id="reservasTable">
                     <thead>
@@ -109,132 +93,176 @@
                 </table>
             </div>
         </div>
-    </div> <script type="module">
-        // Importa as funções do Firebase
-        import { db } from './firebase-config.js'; // Importa o banco
+    </div>
+
+    <script type="module">
+        import { db } from './firebase-config.js';
         import { collection, getDocs, query, orderBy, limit, where } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
 
-        // --- AUTENTICAÇÃO ---
-        // Se não houver 'userId' no localStorage, o usuário não está logado
+        // Verifica autenticação
         if (!localStorage.getItem('userId')) {
-            // Redireciona para a página de login
             window.location.href = 'login.html';
         }
 
-        // --- USUÁRIO ---
-        // Puxa o nome do usuário do localStorage ou usa 'Usuário' como padrão
+        // Exibe nome do usuário
         const userName = localStorage.getItem('userName') || 'Usuário';
-        // Atualiza o HTML
         document.getElementById('userName').textContent = userName;
 
-        // --- LOGOUT ---
-        // Define a função 'logout'
+        // Função de logout
         window.logout = function() {
-            // Limpa todos os dados do localStorage
             localStorage.clear();
-            // Redireciona para a página de login
             window.location.href = 'login.html';
         };
 
-        // --- CARREGAR ESTATÍSTICAS ---
-        async function loadStatistics() {
-            try {
-                // 1. Total de quartos
-                const quartosSnapshot = await getDocs(collection(db, 'quartos'));
-                const totalQuartos = quartosSnapshot.size; // 'size' retorna o número de documentos
-                document.getElementById('totalQuartos').textContent = totalQuartos;
+        let movimentacaoFinanceiraChart = null;
+        let ocupacaoQuartosChart = null;
 
-                // 2. Quartos disponíveis
-                const quartosDisponiveisQuery = query(collection(db, 'quartos'), where('status', '==', 'disponivel'));
-                const quartosDisponiveisSnapshot = await getDocs(quartosDisponiveisQuery);
-                document.getElementById('quartosDisponiveis').textContent = quartosDisponiveisSnapshot.size;
+        // Carrega todos os dados necessários
+        async function loadAllData() {
+            const [reservasSnap, quartosSnap, clientesSnap, despesasSnap] = await Promise.all([
+                getDocs(collection(db, 'reservas')),
+                getDocs(collection(db, 'quartos')),
+                getDocs(collection(db, 'clientes')),
+                getDocs(collection(db, 'despesas'))
+            ]);
 
-                // 3. Total de clientes
-                const clientesSnapshot = await getDocs(collection(db, 'clientes'));
-                document.getElementById('totalClientes').textContent = clientesSnapshot.size;
+            const todasReservas = reservasSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const todosQuartos = quartosSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const todosClientes = clientesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const todasDespesas = despesasSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-                // 4. Reservas ativas
-                const reservasAtivasQuery = query(collection(db, 'reservas'), where('status', '==', 'ativa'));
-                const reservasAtivasSnapshot = await getDocs(reservasAtivasQuery);
-                document.getElementById('reservasAtivas').textContent = reservasAtivasSnapshot.size;
-
-                // 5. Estatísticas de limpeza
-                let quartosLimpos = 0;
-                let quartosSujos = 0;
-                let quartosEmLimpeza = 0;
-
-                quartosSnapshot.forEach((doc) => {
-                    const quarto = doc.data(); // Pega os dados do quarto
-                    // Define 'limpo' como padrão se o status tiver vazio
-                    const statusLimpeza = quarto.statusLimpeza || 'limpo'; 
-                    
-                    // Incrementa o contador correspondente
-                    if (statusLimpeza === 'limpo') {
-                        quartosLimpos++;
-                    } else if (statusLimpeza === 'sujo') {
-                        quartosSujos++;
-                    } else if (statusLimpeza === 'em_limpeza') {
-                        quartosEmLimpeza++;
-                    }
-                });
-
-                // Atualiza o HTML com os totais de limpeza
-                document.getElementById('quartosLimpos').textContent = quartosLimpos;
-                document.getElementById('quartosSujos').textContent = quartosSujos;
-                document.getElementById('quartosEmLimpeza').textContent = quartosEmLimpeza;
-
-            } catch (error) {
-                // Em caso de erro, exibe
-                console.error('Erro ao carregar estatísticas:', error);
-            }
+            return { todasReservas, todosQuartos, todosClientes, todasDespesas };
         }
 
-        // --- RESERVAS RECENTES ---
-        async function loadRecentReservations() {
-            // Pega os elementos
+        // Renderiza os KPIs e Gráficos
+        function renderDashboard(data) {
+            const { todasReservas, todosQuartos, todosClientes, todasDespesas } = data;
+            
+            const hoje = new Date();
+            const trintaDiasAtras = new Date();
+            trintaDiasAtras.setDate(hoje.getDate() - 30);
+
+            // Filtra dados dos últimos 30 dias
+            const reservas30Dias = todasReservas.filter(r => {
+                if (!r.checkIn || !r.checkIn.seconds) return false;
+                const checkInDate = new Date(r.checkIn.seconds * 1000);
+                return checkInDate >= trintaDiasAtras && checkInDate <= hoje;
+            });
+
+            const despesas30Dias = todasDespesas.filter(d => {
+                if (!d.dataEmissao || !d.dataEmissao.seconds) return false;
+                const dataEmissao = new Date(d.dataEmissao.seconds * 1000);
+                return dataEmissao >= trintaDiasAtras && dataEmissao <= hoje;
+            });
+
+            // 1. KPIs
+            const receitaTotal = reservas30Dias.filter(r => r.status !== 'cancelada').reduce((sum, r) => sum + (r.valorTotal || 0), 0);
+            const despesaTotal = despesas30Dias.reduce((sum, d) => sum + (d.valor || 0), 0);
+            const totalClientes = todosClientes.length;
+            
+            const quartosOcupados = todosQuartos.filter(q => q.status === 'ocupado').length;
+            const taxaOcupacao = todosQuartos.length > 0 ? (quartosOcupados / todosQuartos.length * 100) : 0;
+
+            document.getElementById('receitaTotal').textContent = `R$ ${receitaTotal.toFixed(2).replace('.', ',')}`;
+            document.getElementById('despesaTotal').textContent = `R$ ${despesaTotal.toFixed(2).replace('.', ',')}`;
+            document.getElementById('totalClientes').textContent = totalClientes;
+            document.getElementById('taxaOcupacao').textContent = `${taxaOcupacao.toFixed(1)}%`;
+
+            // 2. Gráficos
+            renderMovimentacaoFinanceiraChart(receitaTotal, despesaTotal);
+            renderOcupacaoQuartosChart(todosQuartos);
+        }
+
+        function renderMovimentacaoFinanceiraChart(receitas, despesas) {
+            const ctx = document.getElementById('movimentacaoFinanceiraChart');
+            if (movimentacaoFinanceiraChart) movimentacaoFinanceiraChart.destroy();
+            movimentacaoFinanceiraChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Receitas', 'Despesas'],
+                    datasets: [{
+                        label: 'Valor (R$)',
+                        data: [receitas, despesas],
+                        backgroundColor: ['rgba(16, 185, 129, 0.8)', 'rgba(239, 68, 68, 0.8)']
+                    }]
+                },
+                options: { responsive: true, scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        function renderOcupacaoQuartosChart(quartos) {
+            const statusCounts = quartos.reduce((acc, q) => {
+                acc[q.status] = (acc[q.status] || 0) + 1;
+                return acc;
+            }, {});
+
+            const labels = ['Disponível', 'Ocupado', 'Manutenção'];
+            const data = [
+                statusCounts['disponivel'] || 0,
+                statusCounts['ocupado'] || 0,
+                statusCounts['manutencao'] || 0
+            ];
+
+            const ctx = document.getElementById('ocupacaoQuartosChart');
+            if (ocupacaoQuartosChart) ocupacaoQuartosChart.destroy();
+            ocupacaoQuartosChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: { 
+                    labels, 
+                    datasets: [{ 
+                        label: 'Status de Quartos', 
+                        data, 
+                        backgroundColor: ['#10B981', '#EF4444', '#F59E0B'] 
+                    }] 
+                },
+                options: { responsive: true, plugins: { legend: { position: 'top' } } }
+            });
+        }
+
+        // Carrega reservas recentes
+
+        // Carrega reservas recentes
+        async function loadRecentReservations(todasReservas) {
             const loading = document.getElementById('loading');
             const tableBody = document.getElementById('reservasTableBody');
             
-            // Mostra o indicador de Carregando
             loading.classList.add('show');
             
             try {
-                // Cria uma consulta para a coleção 'reservas'
-                const q = query(
-                    collection(db, 'reservas'), 
-                    orderBy('dataCriacao', 'desc'), // Ordena pela data de criação (mais novas primeiro)
-                    limit(5) // Limita aos 5 resultados mais recentes
-                );
-                // Executa
-                const querySnapshot = await getDocs(q);
+                // Usar as reservas já carregadas e ordenar/limitar no cliente para simplificar
+                const reservasRecentes = todasReservas
+                    .sort((a, b) => (b.dataCriacao?.seconds || 0) - (a.dataCriacao?.seconds || 0))
+                    .slice(0, 5);
 
-                // Verifica se a consulta retornou algum documento
-                if (querySnapshot.empty) {
-                    // Se estiver vazio, exibe a mensagem na tabela
+                if (reservasRecentes.length === 0) {
                     tableBody.innerHTML = '<tr><td colspan="5" class="text-center">Nenhuma reserva encontrada</td></tr>';
-                    return; // Encerra a função
+                    return;
                 }
 
-                // Se houver resultados, limpa o corpo da tabela
                 tableBody.innerHTML = '';
                 
-                // Itera sobre cada documento de reserva retornado
-                for (const doc of querySnapshot.docs) {
-                    const reserva = doc.data(); // Pega os dados da reserva
-                    const row = document.createElement('tr'); // Cria uma nova linha
+                for (const reserva of reservasRecentes) {
+
+                if (querySnapshot.empty) {
+                    tableBody.innerHTML = '<tr><td colspan="5" class="text-center">Nenhuma reserva encontrada</td></tr>';
+                    return;
+                }
+
+                tableBody.innerHTML = '';
+                
+
+                    const row = document.createElement('tr');
                     
                     // Formata as datas
-                    // Verifica se o campo existe antes de tentar formatar
                     const checkIn = reserva.checkIn ? new Date(reserva.checkIn.seconds * 1000).toLocaleDateString('pt-BR') : '-';
                     const checkOut = reserva.checkOut ? new Date(reserva.checkOut.seconds * 1000).toLocaleDateString('pt-BR') : '-';
                     
-                    // Define a classe CSS do status
-                    let statusClass = 'badge-primary'; // Padrão (ex: pendente)
-                    if (reserva.status === 'ativa') statusClass = 'badge-success'; // Verde
-                    else if (reserva.status === 'cancelada') statusClass = 'badge-danger'; // Vermelho
-                    else if (reserva.status === 'finalizada') statusClass = 'badge-warning'; // Laranja
+                    // Define a classe do badge de status
+                    let statusClass = 'badge-primary';
+                    if (reserva.status === 'ativa') statusClass = 'badge-success';
+                    else if (reserva.status === 'cancelada') statusClass = 'badge-danger';
+                    else if (reserva.status === 'finalizada') statusClass = 'badge-warning';
                     
-                    // Preenche o HTML da linha com os dados
                     row.innerHTML = `
                         <td>${reserva.nomeCliente || '-'}</td>
                         <td>${reserva.numeroQuarto || '-'}</td>
@@ -243,25 +271,31 @@
                         <td><span class="badge ${statusClass}">${reserva.status || '-'}</span></td>
                     `;
                     
-                    // Adiciona a linha criada a tabela
                     tableBody.appendChild(row);
                 }
 
             } catch (error) {
-                // Em caso de erro, exibe no console e na tabela
                 console.error('Erro ao carregar reservas:', error);
                 tableBody.innerHTML = '<tr><td colspan="5" class="text-center">Erro ao carregar reservas</td></tr>';
             } finally {
-                // Esconde o indicador de "Carregando"
                 loading.classList.remove('show');
             }
         }
 
-        // --- EXECUTA ---
-        // Chama as funções para carregar os dados assim que a página for carregada
-        loadStatistics();
-        loadRecentReservations();
+        // Carrega dados ao iniciar
+        async function init() {
+            try {
+                const data = await loadAllData();
+                renderDashboard(data);
+                loadRecentReservations(data.todasReservas);
+            } catch (error) {
+                console.error('Erro fatal ao carregar Dashboard:', error);
+                // Opcional: Adicionar um alerta ou mensagem de erro na tela
+            }
+        }
+
+        init();
     </script>
 </body>
-
 </html>
+
