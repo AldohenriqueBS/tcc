@@ -134,7 +134,7 @@
             return { todasReservas, todosQuartos, todosClientes, todasDespesas };
         }
 
-        // Renderiza os KPIs e Gráficos
+        // Renderiza os Gráficos
         function renderDashboard(data) {
             const { todasReservas, todosQuartos, todosClientes, todasDespesas } = data;
             
@@ -155,71 +155,115 @@
                 return dataEmissao >= trintaDiasAtras && dataEmissao <= hoje;
             });
 
-            // 1. KPIs
-            const receitaTotal = reservas30Dias.filter(r => r.status !== 'cancelada').reduce((sum, r) => sum + (r.valorTotal || 0), 0);
-            const despesaTotal = despesas30Dias.reduce((sum, d) => sum + (d.valor || 0), 0);
-            const totalClientes = todosClientes.length;
-            
-            const quartosOcupados = todosQuartos.filter(q => q.status === 'ocupado').length;
-            const taxaOcupacao = todosQuartos.length > 0 ? (quartosOcupados / todosQuartos.length * 100) : 0;
+            // --- KPIs (Key Performance Indicators) ---
 
-            document.getElementById('receitaTotal').textContent = `R$ ${receitaTotal.toFixed(2).replace('.', ',')}`;
-            document.getElementById('despesaTotal').textContent = `R$ ${despesaTotal.toFixed(2).replace('.', ',')}`;
-            document.getElementById('totalClientes').textContent = totalClientes;
-            document.getElementById('taxaOcupacao').textContent = `${taxaOcupacao.toFixed(1)}%`;
+        // Calcula a 'receitaTotal':
+        // 1. Filtra o array 'reservas30Dias', mantendo apenas as reservas que NÃO estão canceladas.
+        // 2. Soma os valores. 'sum' é o acumulador e 'r' é a reserva atual.
+        // 3. garante que, se 'valorTotal' for nulo ou indefinido, 0 será somado em vez de causar um erro.
+        const receitaTotal = reservas30Dias.filter(r => r.status !== 'cancelada').reduce((sum, r) => sum + (r.valorTotal || 0), 0);
+        
+        // Calcula a 'despesaTotal':
+        // 1. Soma o campo 'valor' de todas as 'despesas30Dias'.
+        const despesaTotal = despesas30Dias.reduce((sum, d) => sum + (d.valor || 0), 0);
+        
+        // Calcula o 'totalClientes':
+        // 1. Conta quantos itens existem no array 'todosClientes'
+        const totalClientes = todosClientes.length;
+        
+        // Calcula a 'taxaOcupacao':
+        // 1. Filtra 'todosQuartos' para encontrar aqueles com status 'ocupado' e conta quantos são
+        const quartosOcupados = todosQuartos.filter(q => q.status === 'ocupado').length;
+        // 2. Calcula a porcentagem. Usa um operador ternário para evitar divisão por zero
+        //    if o total de quartos for maior que 0, calcula (quartosOcupados / todosQuartos.length * 100).
+        //    else, o resultado é 0.
+        const taxaOcupacao = todosQuartos.length > 0 ? (quartosOcupados / todosQuartos.length * 100) : 0;
 
-            // 2. Gráficos
-            renderMovimentacaoFinanceiraChart(receitaTotal, despesaTotal);
-            renderOcupacaoQuartosChart(todosQuartos);
-        }
+        // --- Elementos HTML (KPIs) ---
+        // Pega o elemento HTML com id 'receitaTotal' e atualiza seu texto.
+        // Formata o número para ter 2 casas decimais
+        // Troca o ponto decimal por vírgula
+        document.getElementById('receitaTotal').textContent = `R$ ${receitaTotal.toFixed(2).replace('.', ',')}`;
+        document.getElementById('despesaTotal').textContent = `R$ ${despesaTotal.toFixed(2).replace('.', ',')}`;
+        document.getElementById('totalClientes').textContent = totalClientes;
+        // Formata a taxa de ocupação para 1 casa decimal
+        document.getElementById('taxaOcupacao').textContent = `${taxaOcupacao.toFixed(1)}%`;
 
-        function renderMovimentacaoFinanceiraChart(receitas, despesas) {
-            const ctx = document.getElementById('movimentacaoFinanceiraChart');
-            if (movimentacaoFinanceiraChart) movimentacaoFinanceiraChart.destroy();
-            movimentacaoFinanceiraChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: ['Receitas', 'Despesas'],
-                    datasets: [{
-                        label: 'Valor (R$)',
-                        data: [receitas, despesas],
-                        backgroundColor: ['rgba(16, 185, 129, 0.8)', 'rgba(239, 68, 68, 0.8)']
-                    }]
-                },
-                options: { responsive: true, scales: { y: { beginAtZero: true } } }
-            });
-        }
+        // --- Gráficos ---
+        // Chama as funções que criam/atualizam os gráficos, passando os dados.
+        renderMovimentacaoFinanceiraChart(receitaTotal, despesaTotal);
+        renderOcupacaoQuartosChart(todosQuartos);
+    }
 
-        function renderOcupacaoQuartosChart(quartos) {
-            const statusCounts = quartos.reduce((acc, q) => {
-                acc[q.status] = (acc[q.status] || 0) + 1;
-                return acc;
-            }, {});
+     // Renderiza o gráfico de barras de Receitas vs Despesas.
+    function renderMovimentacaoFinanceiraChart(receitas, despesas) {
+        // Pega o elemento <canvas> onde o gráfico será desenhado.
+        const ctx = document.getElementById('movimentacaoFinanceiraChart');
+        // Verifica se o gráfico já existe.
+        // Se sim, '.destroy()' remove o gráfico anterior para evitar bugs e sobreposições.
+        if (movimentacaoFinanceiraChart) movimentacaoFinanceiraChart.destroy();
+        
+        // Cria uma nova instância do Chart.js.
+        movimentacaoFinanceiraChart = new Chart(ctx, {
+            type: 'bar', // Define o tipo de gráfico como "barras".
+            data: {
+                labels: ['Receitas', 'Despesas'], // Rótulos do eixo X.
+                datasets: [{
+                    label: 'Valor (R$)', // Rótulo que aparece na legenda/tooltip.
+                    data: [receitas, despesas], // Os dados (valores) para cada barra.
+                    backgroundColor: ['rgba(16, 185, 129, 0.8)', 'rgba(239, 68, 68, 0.8)'] // Cores das barras.
+                }]
+            },
+            options: { // Opções de configuração do gráfico.
+                responsive: true, // Torna o gráfico responsivo (se adapta ao tamanho do container).
+                scales: { y: { beginAtZero: true } } // Configura o eixo Y para começar no valor 0.
+            }
+        });
+    }
 
-            const labels = ['Disponível', 'Ocupado', 'Manutenção'];
-            const data = [
-                statusCounts['disponivel'] || 0,
-                statusCounts['ocupado'] || 0,
-                statusCounts['manutencao'] || 0
-            ];
 
-            const ctx = document.getElementById('ocupacaoQuartosChart');
-            if (ocupacaoQuartosChart) ocupacaoQuartosChart.destroy();
-            ocupacaoQuartosChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: { 
-                    labels, 
-                    datasets: [{ 
-                        label: 'Status de Quartos', 
-                        data, 
-                        backgroundColor: ['#10B981', '#EF4444', '#F59E0B'] 
-                    }] 
-                },
-                options: { responsive: true, plugins: { legend: { position: 'top' } } }
-            });
-        }
+     // Renderiza/atualiza o gráfico de rosca (doughnut) com o status dos quartos.
+    function renderOcupacaoQuartosChart(quartos) {
+        // Agrupa e conta os quartos por status.
+        // '.reduce' transforma o array 'quartos' em um objeto de contagem.
+        // 'acc' é o objeto. 'q' é o quarto atual.
+        //  Pega a contagem atual para o status 
+        const statusCounts = quartos.reduce((acc, q) => {
+            acc[q.status] = (acc[q.status] || 0) + 1;
+            return acc;
+        }, {});
 
-        // Carrega reservas recentes
+        // Define os rótulos para o gráfico 
+        const labels = ['Disponível', 'Ocupado', 'Manutenção'];
+        // Cria o array de dados (valores) buscando as contagens do objeto 'statusCounts'.
+        const data = [
+            statusCounts['disponivel'] || 0,
+            statusCounts['ocupado'] || 0,
+            statusCounts['manutencao'] || 0
+        ];
+
+        // Pega o <canvas> do gráfico de ocupação.
+        const ctx = document.getElementById('ocupacaoQuartosChart');
+        // Destrói o gráfico anterior, se ele já existir.
+        if (ocupacaoQuartosChart) ocupacaoQuartosChart.destroy();
+        
+        // Cria uma nova instância do Chart.js.
+        ocupacaoQuartosChart = new Chart(ctx, {
+            type: 'doughnut', // Define o tipo como "rosca" (pizza com buraco no meio).
+            data: { 
+                labels, // Usa os rótulos definidos acima.
+                datasets: [{ 
+                    label: 'Status de Quartos', 
+                    data, // Usa os dados (contagens) definidos acima.
+                    backgroundColor: ['#10B981', '#EF4444', '#F59E0B'] // Cores para cada fatia.
+                }] 
+            },
+            options: { // Opções de configuração.
+                responsive: true, 
+                plugins: { legend: { position: 'top' } } // Move a legenda para o topo do gráfico.
+            }
+        });
+    }       
 
         // Carrega reservas recentes
         async function loadRecentReservations(todasReservas) {

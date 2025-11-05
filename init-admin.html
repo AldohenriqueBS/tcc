@@ -18,6 +18,7 @@
                 <p style="margin-bottom: 20px;">Clique no botão abaixo para criar o usuário administrador padrão:</p>
                 <p style="margin-bottom: 20px;"><strong>E-mail:</strong> admin@reservaai.com<br><strong>Senha:</strong> admin123</p>
                 <button class="btn btn-primary" id="createBtn" style="width: 100%;">Criar Usuário Admin</button>
+                
                 <div id="loading" class="loading" style="margin-top: 20px;">
                     <div class="spinner"></div>
                     <p>Criando usuário...</p>
@@ -31,84 +32,107 @@
     </div>
 
     <script type="module">
+        // Importa os dados do firebase (configuração de autenticação e banco de dados) do arquivo local
         import { auth, db } from './firebase-config.js';
+        // Cria usuario e senha no firebase
         import { createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+        // Importa coleçoes, documentos e tempo do servidor, para definir uma data
         import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
 
+        // Armazena o elemento 'div' 
         const alertDiv = document.getElementById('alert');
+        // Armazena o 'div' de carregamento
         const loading = document.getElementById('loading');
+        // Armazena o botão de criação
         const createBtn = document.getElementById('createBtn');
 
         function showAlert(message, type) {
+            // Define o texto de alerta
             alertDiv.textContent = message;
+            // Define as classes CSS do 'div'
             alertDiv.className = `alert alert-${type} show`;
         }
 
         async function createAdmin() {
+            // Log no console para depuração
             console.log('Iniciando criação do admin...');
+            // Mostra o indicador de carregamento
             loading.classList.add('show');
+            // Desabilita o botão para evitar cliques múltiplos
             createBtn.disabled = true;
 
+            // Bloco 'try...catch' para tratar erros 
             try {
                 console.log('Tentando criar usuário no Firebase Auth...');
                 
-                // Cria usuário admin no Firebase Auth
+                // 1. Cria o usuário no Firebase Authentication (Autenticação)
                 const userCredential = await createUserWithEmailAndPassword(
-                    auth, 
-                    'admin@reservaai.com', 
-                    'admin123'
+                    auth, // A instância de autenticação importada
+                    'admin@reservaai.com', // O e-mail padrão do admin
+                    'admin123' // A senha padrão do admin
                 );
+                // Obtém o objeto 'user' da credencial retornada
                 const user = userCredential.user;
                 
                 console.log('Usuário criado no Auth:', user.uid);
                 console.log('Salvando dados no Firestore...');
                 
-                // Salva dados do admin no Firestore
-                await addDoc(collection(db, 'usuarios'), {
-                    uid: user.uid,
-                    nome: 'Administrador',
-                    email: 'admin@reservaai.com',
-                    dataCadastro: serverTimestamp(),
-                    ativo: true,
-                    tipo: 'admin'
+                await addDoc(collection(db, 'usuarios'), { // Adiciona na coleção 'usuarios'
+                    uid: user.uid, // O ID único do usuário
+                    nome: 'Administrador', // Nome
+                    email: 'admin@reservaai.com', // E-mail
+                    dataCadastro: serverTimestamp(), // Data atual do servidor
+                    ativo: true, // Status do usuário
+                    tipo: 'admin' // Tipo do usuário
                 });
                 
                 console.log('Admin criado com sucesso!');
+                // Mostra um alerta de sucesso
                 showAlert('Usuário administrador criado com sucesso! Redirecionando...', 'success');
                 
+                // Define um delay de 2 segundos (2000 ms)
                 setTimeout(() => {
+                    // Após 2 segundos, redireciona o usuário para a página de login
                     window.location.href = 'login.html';
                 }, 2000);
                 
-            } catch (error) {
+            } catch (error) { // Bloco 'catch' é executado se algo no 'try' falhar
+                // Registra o erro completo no console para depuração
                 console.error('Erro ao criar admin:', error);
                 console.error('Código do erro:', error.code);
                 console.error('Mensagem do erro:', error.message);
                 
                 let errorMessage = 'Erro ao criar usuário administrador.';
                 
+                // Verifica se o erro é porque o e-mail já está em uso
                 if (error.code === 'auth/email-already-in-use') {
                     errorMessage = 'Usuário administrador já existe! Você pode fazer login.';
+                    // Mostra um alerta de aviso (warning)
                     showAlert(errorMessage, 'warning');
+                    // Se já existe, também redireciona para o login
                     setTimeout(() => {
                         window.location.href = 'login.html';
                     }, 2000);
-                } else {
+                } else { // Para qualquer outro tipo de erro
                     errorMessage += ' Detalhes: ' + error.message;
+                    // Mostra um alerta de erro
                     showAlert(errorMessage, 'error');
+                    // Reabilita o botão para que o usuário possa tentar novamente
                     createBtn.disabled = false;
                 }
                 
-            } finally {
+            } finally { // O bloco 'finally' é executado sempre, com sucesso ou erro
+                // Esconde o indicador de carregamento
                 loading.classList.remove('show');
             }
         }
 
-        // Adiciona event listener ao botão
+        // Quando o botão for clicado a função createAdmin é executada.
         createBtn.addEventListener('click', createAdmin);
         
+        // Log para confirmar que o script foi carregado
         console.log('Script carregado com sucesso!');
+    
     </script>
 </body>
 </html>
-

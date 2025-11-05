@@ -136,6 +136,7 @@
     </div>
 
     <script type="module">
+        // Importações
         import { db } from './firebase-config.js';
         import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
 
@@ -152,6 +153,7 @@
             window.location.href = 'login.html';
         };
 
+        // pega os IDs do html
         const modal = document.getElementById('quartoModal');
         const quartoForm = document.getElementById('quartoForm');
         const alertDiv = document.getElementById('alert');
@@ -165,150 +167,227 @@
             }, 5000);
         }
 
-        window.openModal = function(quartoId = null) {
-            modal.classList.add('show');
-            document.getElementById('modalTitle').textContent = quartoId ? 'Editar Quarto' : 'Novo Quarto';
-            
-            if (quartoId) {
-                loadQuartoData(quartoId);
-            } else {
-                quartoForm.reset();
-                document.getElementById('quartoId').value = '';
-                document.getElementById('statusLimpeza').value = 'limpo';
-            }
-        };
+        // --- Modal (Popup) ---
 
-        window.closeModal = function() {
-            modal.classList.remove('show');
-            quartoForm.reset();
-        };
+window.openModal = function(quartoId = null) {
+    // Adiciona a classe 'show' ao modal, o que o css torna visível.
+    modal.classList.add('show');
+    
+    // Se 'quartoId' existir (estamos editando), o título é 'Editar Quarto'.
+    // Senão (estamos criando um novo), o título é 'Novo Quarto'.
+    document.getElementById('modalTitle').textContent = quartoId ? 'Editar Quarto' : 'Novo Quarto';
+    
+    // Verifica se estamos em modo de edição.
+    if (quartoId) {
+        // Se sim, chama a função para carregar os dados desse quarto no formulário.
+        loadQuartoData(quartoId);
+    } else {
+        // Se não,
+        // 'quartoForm.reset()' limpa todos os campos do formulário.
+        quartoForm.reset();
+        // Garante que o campo oculto 'quartoId' esteja vazio.
+        document.getElementById('quartoId').value = '';
+        // Define um valor padrão para o status de limpeza.
+        document.getElementById('statusLimpeza').value = 'limpo';
+    }
+};
 
-        async function loadQuartoData(quartoId) {
-            const quartosSnapshot = await getDocs(collection(db, 'quartos'));
-            quartosSnapshot.forEach((doc) => {
-                if (doc.id === quartoId) {
-                    const quarto = doc.data();
-                    document.getElementById('quartoId').value = doc.id;
-                    document.getElementById('numero').value = quarto.numero;
-                    document.getElementById('tipo').value = quarto.tipo;
-                    document.getElementById('capacidade').value = quarto.capacidade;
-                    document.getElementById('preco').value = quarto.preco;
-                    document.getElementById('descricao').value = quarto.descricao || '';
-                    document.getElementById('status').value = quarto.status;
-                    document.getElementById('statusLimpeza').value = quarto.statusLimpeza || 'limpo';
-                }
-            });
+/**
+ * Fecha o modal (popup) de quarto.
+ */
+// 'window.closeModal' torna a função global, para ser chamada por botões 'onclick'.
+window.closeModal = function() {
+    // Remove a classe 'show' para esconder o modal.
+    modal.classList.remove('show');
+    // Limpa o formulário, removendo quaisquer dados (novos ou editados) que não foram salvos.
+    quartoForm.reset();
+};
+
+// Carrega os dados de um quarto específico do Firestore e preenche o formulário.
+async function loadQuartoData(quartoId) {
+    // NOTA: Este método busca TODOS os quartos e depois filtra.
+    const quartosSnapshot = await getDocs(collection(db, 'quartos'));
+    
+    // Itera por todos os documentos de quartos baixados.
+    quartosSnapshot.forEach((doc) => {
+        // Quando encontrar o documento com o ID correspondente...
+        if (doc.id === quartoId) {
+            // ...pega os dados do quarto.
+            const quarto = doc.data();
+            // Preenche cada campo do formulário com os dados do quarto.
+            document.getElementById('quartoId').value = doc.id;
+            document.getElementById('numero').value = quarto.numero;
+            document.getElementById('tipo').value = quarto.tipo;
+            document.getElementById('capacidade').value = quarto.capacidade;
+            document.getElementById('preco').value = quarto.preco;
+            // Usa '|| '''' para evitar que "undefined" ou "null" apareça no campo.
+            document.getElementById('descricao').value = quarto.descricao || '';
+            document.getElementById('status').value = quarto.status;
+            // Define o valor ou um padrão 'limpo' se não estiver definido.
+            document.getElementById('statusLimpeza').value = quarto.statusLimpeza || 'limpo';
+        }
+    });
+}
+
+// --- (Salvar/Atualizar) ---
+
+// Adiciona um listener ao evento 'submit'
+quartoForm.addEventListener('submit', async (e) => {
+    // 'e.preventDefault()' impede que o formulário recarregue a página
+    e.preventDefault();
+    
+    // Pega o ID do quarto do campo oculto. Se for um novo quarto, estará vazio.
+    const quartoId = document.getElementById('quartoId').value;
+    
+    // Monta um objeto 'quartoData' com todos os valores dos campos do formulário.
+    const quartoData = {
+        numero: document.getElementById('numero').value,
+        tipo: document.getElementById('tipo').value,
+        // 'parseInt' e 'parseFloat' convertem os valores de texto para números.
+        capacidade: parseInt(document.getElementById('capacidade').value),
+        preco: parseFloat(document.getElementById('preco').value),
+        descricao: document.getElementById('descricao').value,
+        status: document.getElementById('status').value,
+        statusLimpeza: document.getElementById('statusLimpeza').value,
+        // 'serverTimestamp()' registra a data/hora atual do servidor.
+        dataAtualizacao: serverTimestamp()
+    };
+
+    try {
+        // Se 'quartoId' existir, é uma ATUALIZAÇÃO (Update).
+        if (quartoId) {
+            // Atualiza o documento existente no Firestore.
+            await updateDoc(doc(db, 'quartos', quartoId), quartoData);
+            showAlert('Quarto atualizado com sucesso!', 'success');
+        } else { // Se 'quartoId' for vazio, é uma CRIAÇÃO (Create).
+            // Adiciona o 'dataCriacao' apenas para novos quartos.
+            quartoData.dataCriacao = serverTimestamp();
+            // Adiciona um novo documento à coleção 'quartos'.
+            await addDoc(collection(db, 'quartos'), quartoData);
+            showAlert('Quarto cadastrado com sucesso!', 'success');
+        }
+        
+        // Após salvar (criar ou atualizar), fecha o modal.
+        closeModal();
+        // Recarrega a lista de quartos na tabela para mostrar os dados atualizados.
+        loadQuartos();
+        
+    } catch (error) { // Se algo der errado no 'try'...
+        console.error('Erro ao salvar quarto:', error);
+        showAlert('Erro ao salvar quarto. Tente novamente.', 'error');
+    }
+});
+
+// --- (Editar/Excluir) ---
+
+// 'window.editQuarto' torna a função global para o 'onclick' do HTML.
+window.editQuarto = function(quartoId) {
+    // Simplesmente chama a função 'openModal' passando o ID.
+    openModal(quartoId);
+};
+
+// Função chamada pelo botão "Excluir" na tabela.
+// 'window.deleteQuarto' torna a função global.
+window.deleteQuarto = async function(quartoId, numero) {
+    // 'confirm()' mostra uma caixa de diálogo nativa do navegador.
+    // O código só continua se o usuário clicar em "OK".
+    if (confirm(`Tem certeza que deseja excluir o quarto ${numero}?`)) {
+        try {
+            // Deleta o documento do Firestore usando seu ID.
+            await deleteDoc(doc(db, 'quartos', quartoId));
+            showAlert('Quarto excluído com sucesso!', 'success');
+            // Recarrega a tabela para remover o quarto da lista.
+            loadQuartos();
+        } catch (error) {
+            console.error('Erro ao excluir quarto:', error);
+            showAlert('Erro ao excluir quarto. Tente novamente.', 'error');
+        }
+    }
+};
+
+// --- Tabela de Quartos ---
+
+
+// Carrega todos os quartos do Firestore e os renderiza na tabela HTML.
+
+async function loadQuartos() {
+    // Mostra o indicador de 'loading'.
+    loading.classList.add('show');
+    // Pega o elemento 'tbody' (corpo da tabela) onde as linhas serão inseridas.
+    const tableBody = document.getElementById('quartosTableBody');
+    
+    try {
+        // Cria uma query no Firestore.
+        const q = query(
+            collection(db, 'quartos'), // Da coleção 'quartos'.
+            orderBy('numero', 'asc')   // Ordenada pelo 'numero' em ordem ascendente.
+        );
+        // Executa a consulta e obtém o "snapshot" (foto) dos resultados.
+        const querySnapshot = await getDocs(q);
+
+        // Se o snapshot estiver vazio (nenhum quarto cadastrado).
+        if (querySnapshot.empty) {
+            tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Nenhum quarto cadastrado</td></tr>';
+            return; // Encerra a função aqui.
         }
 
-        quartoForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
+        // Limpa o corpo da tabela (remove linhas antigas ou a mensagem "Nenhum quarto...").
+        tableBody.innerHTML = '';
+        
+        // Itera sobre cada documento ('doc') retornado na consulta.
+        querySnapshot.forEach((doc) => {
+            // Pega os dados de dentro do documento (o objeto 'quarto').
+            const quarto = doc.data();
+            // Cria um novo elemento HTML de linha de tabela (<tr>).
+            const row = document.createElement('tr');
             
-            const quartoId = document.getElementById('quartoId').value;
-            const quartoData = {
-                numero: document.getElementById('numero').value,
-                tipo: document.getElementById('tipo').value,
-                capacidade: parseInt(document.getElementById('capacidade').value),
-                preco: parseFloat(document.getElementById('preco').value),
-                descricao: document.getElementById('descricao').value,
-                status: document.getElementById('status').value,
-                statusLimpeza: document.getElementById('statusLimpeza').value,
-                dataAtualizacao: serverTimestamp()
-            };
-
-            try {
-                if (quartoId) {
-                    await updateDoc(doc(db, 'quartos', quartoId), quartoData);
-                    showAlert('Quarto atualizado com sucesso!', 'success');
-                } else {
-                    quartoData.dataCriacao = serverTimestamp();
-                    await addDoc(collection(db, 'quartos'), quartoData);
-                    showAlert('Quarto cadastrado com sucesso!', 'success');
-                }
-                
-                closeModal();
-                loadQuartos();
-                
-            } catch (error) {
-                console.error('Erro ao salvar quarto:', error);
-                showAlert('Erro ao salvar quarto. Tente novamente.', 'error');
+            // Lógica para definir a classe CSS do "badge" de status
+            let statusClass = 'badge-success'; // Verde (padrão 'disponivel')
+            if (quarto.status === 'ocupado') statusClass = 'badge-danger'; // Vermelho
+            else if (quarto.status === 'manutencao') statusClass = 'badge-warning'; // Laranja
+            
+            // Lógica para definir a classe CSS e o texto do "badge" de limpeza.
+            let limpezaClass = 'badge-success';
+            let limpezaTexto = 'Limpo';
+            if (quarto.statusLimpeza === 'sujo') {
+                limpezaClass = 'badge-danger';
+                limpezaTexto = 'Sujo';
+            } else if (quarto.statusLimpeza === 'em_limpeza') {
+                limpezaClass = 'badge-warning';
+                limpezaTexto = 'Em limpeza';
             }
+            
+            // Define o HTML interno da linha (<tr>) usando um template literal (crases ``).
+            // Isso permite inserir variáveis (como ${quarto.numero}) facilmente.
+            row.innerHTML = `
+                <td>${quarto.numero}</td>
+                <td>${quarto.tipo}</td>
+                <td>${quarto.capacidade} pessoa(s)</td>
+                <td>R$ ${quarto.preco.toFixed(2)}</td>
+                <td><span class="badge ${statusClass}">${quarto.status}</span></td>
+                <td><span class="badge ${limpezaClass}">${limpezaTexto}</span></td>
+                <td class="table-actions">
+                    <button class="btn btn-warning" onclick="editQuarto('${doc.id}')">Editar</button>
+                    <button class="btn btn-danger" onclick="deleteQuarto('${doc.id}', '${quarto.numero}')">Excluir</button>
+                </td>
+            `;
+            
+            // Adiciona a linha (<tr>) recém-criada ao corpo da tabela (<tbody>).
+            tableBody.appendChild(row);
         });
 
-        window.editQuarto = function(quartoId) {
-            openModal(quartoId);
-        };
+    } catch (error) { // Se a leitura do banco de dados falhar...
+        console.error('Erro ao carregar quartos:', error);
+        tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Erro ao carregar quartos</td></tr>';
+    } finally { // O bloco 'finally' sempre é executado (com sucesso ou com erro).
+        // Esconde o indicador de 'loading'.
+        loading.classList.remove('show');
+    }
+}
 
-        window.deleteQuarto = async function(quartoId, numero) {
-            if (confirm(`Tem certeza que deseja excluir o quarto ${numero}?`)) {
-                try {
-                    await deleteDoc(doc(db, 'quartos', quartoId));
-                    showAlert('Quarto excluído com sucesso!', 'success');
-                    loadQuartos();
-                } catch (error) {
-                    console.error('Erro ao excluir quarto:', error);
-                    showAlert('Erro ao excluir quarto. Tente novamente.', 'error');
-                }
-            }
-        };
-
-        async function loadQuartos() {
-            loading.classList.add('show');
-            const tableBody = document.getElementById('quartosTableBody');
-            
-            try {
-                const q = query(collection(db, 'quartos'), orderBy('numero', 'asc'));
-                const querySnapshot = await getDocs(q);
-
-                if (querySnapshot.empty) {
-                    tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Nenhum quarto cadastrado</td></tr>';
-                    return;
-                }
-
-                tableBody.innerHTML = '';
-                
-                querySnapshot.forEach((doc) => {
-                    const quarto = doc.data();
-                    const row = document.createElement('tr');
-                    
-                    let statusClass = 'badge-success';
-                    if (quarto.status === 'ocupado') statusClass = 'badge-danger';
-                    else if (quarto.status === 'manutencao') statusClass = 'badge-warning';
-                    
-                    let limpezaClass = 'badge-success';
-                    let limpezaTexto = 'Limpo';
-                    if (quarto.statusLimpeza === 'sujo') {
-                        limpezaClass = 'badge-danger';
-                        limpezaTexto = 'Sujo';
-                    } else if (quarto.statusLimpeza === 'em_limpeza') {
-                        limpezaClass = 'badge-warning';
-                        limpezaTexto = 'Em limpeza';
-                    }
-                    
-                    row.innerHTML = `
-                        <td>${quarto.numero}</td>
-                        <td>${quarto.tipo}</td>
-                        <td>${quarto.capacidade} pessoa(s)</td>
-                        <td>R$ ${quarto.preco.toFixed(2)}</td>
-                        <td><span class="badge ${statusClass}">${quarto.status}</span></td>
-                        <td><span class="badge ${limpezaClass}">${limpezaTexto}</span></td>
-                        <td class="table-actions">
-                            <button class="btn btn-warning" onclick="editQuarto('${doc.id}')">Editar</button>
-                            <button class="btn btn-danger" onclick="deleteQuarto('${doc.id}', '${quarto.numero}')">Excluir</button>
-                        </td>
-                    `;
-                    
-                    tableBody.appendChild(row);
-                });
-
-            } catch (error) {
-                console.error('Erro ao carregar quartos:', error);
-                tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Erro ao carregar quartos</td></tr>';
-            } finally {
-                loading.classList.remove('show');
-            }
-        }
-
-        loadQuartos();
+// Chama a função 'loadQuartos' assim que o script é carregado
+// para preencher a tabela pela primeira vez.
+loadQuartos();
     </script>
 </body>
 </html>

@@ -35,55 +35,79 @@
     </div>
 
     <script type="module">
+        // Faz as importações do firebase
         import { auth, db } from './firebase-config.js';
         import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
         import { collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
 
+        // Armazena o elemento <form> 
         const loginForm = document.getElementById('loginForm');
+        // Armazena o elemento <div> 
         const alertDiv = document.getElementById('alert');
 
         function showAlert(message, type) {
+            // Define o texto do alerta
             alertDiv.textContent = message;
+            // Adiciona as classes CSS 
             alertDiv.className = `alert alert-${type} show`;
+            // Define um delay de 5 segundos
             setTimeout(() => {
-                alertDiv.className = 'alert';
+                alertDiv.className = 'alert'; // Remove a classe 'show' e a de tipo
             }, 5000);
         }
 
         loginForm.addEventListener('submit', async (e) => {
+            // e.preventDefault() impede recarregar a página, o padrão dos forms
             e.preventDefault();
             
+            // Pega os valores digitados nos campos de e-mail e senha
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
 
+            // Bloco 'try...catch' caso de erro
             try {
-                // Tenta fazer login com Firebase Auth
+                // 1. Tenta fazer o login no Firebase Authentication
+                // o 'await' pausa até o Firebase responder
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                // Se o login for bem-sucedido, 'userCredential' conterá os dados do usuário
                 const user = userCredential.user;
                 
-                // Salva informações do usuário no localStorage
+                // 2. Salva informações do usuário no 'localStorage' do navegador
+                // Isso permite que outras páginas saibam que o usuário está logado
                 localStorage.setItem('userId', user.uid);
                 localStorage.setItem('userEmail', user.email);
                 
-                // Busca informações adicionais do usuário no Firestore
+                // 3. Busca informações no Firestore
+                // Referencia a coleção 'usuarios'
                 const usersRef = collection(db, 'usuarios');
+                // Cria uma query para buscar onde o campo 'email' é igual ao e-mail logado
                 const q = query(usersRef, where('email', '==', email));
+                // Executa
                 const querySnapshot = await getDocs(q);
                 
+                // Verifica se a consulta retornou algum documento
                 if (!querySnapshot.empty) {
+                    // Pega os dados do primeiro documento encontrado
                     const userData = querySnapshot.docs[0].data();
+                    // Salva o nome do usuário no localStorage
                     localStorage.setItem('userName', userData.nome || 'Usuário');
                 }
                 
+                // 4. Mostra alerta de sucesso e redireciona
                 showAlert('Login realizado com sucesso!', 'success');
                 setTimeout(() => {
+                    // Redireciona o navegador para a página principal
                     window.location.href = 'index.html';
                 }, 1000);
                 
-            } catch (error) {
+            } catch (error) { // Bloco 'catch' é executado se o 'try' falhar
+                // Registra o erro detalhado no console
                 console.error('Erro ao fazer login:', error);
+                
+                // Define uma mensagem de erro padrão
                 let errorMessage = 'Erro ao fazer login. Verifique suas credenciais.';
                 
+                // Personaliza a mensagem de erro com base no código de erro do Firebase
                 if (error.code === 'auth/user-not-found') {
                     errorMessage = 'Usuário não encontrado.';
                 } else if (error.code === 'auth/wrong-password') {
@@ -98,11 +122,11 @@
             }
         });
 
-        // Verifica se já está logado
+        // Verifica se o 'userId' já existe no 'localStorage' (de um login anterior)
         if (localStorage.getItem('userId')) {
+            // Se já estiver logado, redireciona direto para a página principal
             window.location.href = 'index.html';
         }
     </script>
 </body>
 </html>
-
