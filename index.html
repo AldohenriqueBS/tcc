@@ -287,14 +287,6 @@
                 
                 for (const reserva of reservasRecentes) {
 
-                if (querySnapshot.empty) {
-                    tableBody.innerHTML = '<tr><td colspan="5" class="text-center">Nenhuma reserva encontrada</td></tr>';
-                    return;
-                }
-
-                tableBody.innerHTML = '';
-                
-
                     const row = document.createElement('tr');
                     
                     // Formata as datas
@@ -342,4 +334,3 @@
     </script>
 </body>
 </html>
-

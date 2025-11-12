@@ -66,7 +66,6 @@
         </div>
     </div>
 
-    <!-- Modal -->
     <div id="reservaModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -78,46 +77,46 @@
                 <input type="hidden" id="reservaId">
                 
                 <div class="form-group">
-                    <label class="form-label" for="clienteId">Cliente</label>
+                    <label class="form-label" for="clienteId">Cliente*</label>
                     <select id="clienteId" class="form-select" required>
                         <option value="">Selecione um cliente...</option>
                     </select>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label" for="quartoId">Quarto</label>
+                    <label class="form-label" for="quartoId">Quarto*</label>
                     <select id="quartoId" class="form-select" required>
                         <option value="">Selecione um quarto...</option>
                     </select>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label" for="checkIn">Data de Check-in</label>
+                    <label class="form-label" for="checkIn">Data de Check-in*</label>
                     <input type="date" id="checkIn" class="form-input" required>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label" for="checkOut">Data de Check-out</label>
+                    <label class="form-label" for="checkOut">Data de Check-out*</label>
                     <input type="date" id="checkOut" class="form-input" required>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label" for="numeroPessoas">Número de Pessoas</label>
+                    <label class="form-label" for="numeroPessoas">Número de Pessoas*</label>
                     <input type="number" id="numeroPessoas" class="form-input" min="1" required>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label" for="valorTotal">Valor Total (R$)</label>
+                    <label class="form-label" for="valorTotal">Valor Total (R$*)</label>
                     <input type="number" id="valorTotal" class="form-input" step="0.01" min="0" readonly>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label" for="observacoes">Observações</label>
+                    <label class="form-label" for="observacoes">Observações*</label>
                     <textarea id="observacoes" class="form-textarea" placeholder="Observações sobre a reserva"></textarea>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label" for="status">Status</label>
+                    <label class="form-label" for="status">Status*</label>
                     <select id="status" class="form-select" required>
                         <option value="ativa">Ativa</option>
                         <option value="confirmada">Confirmada</option>
@@ -155,6 +154,10 @@
         const reservaForm = document.getElementById('reservaForm');
         const alertDiv = document.getElementById('alert');
         const loading = document.getElementById('loading');
+        
+        // --- NOVO: Seletores de data ---
+        const checkInInput = document.getElementById('checkIn');
+        const checkOutInput = document.getElementById('checkOut');
 
         let clientes = [];
         let quartos = [];
@@ -199,27 +202,56 @@
             });
         }
 
+        // --- ATUALIZADO: Validação de data no cálculo ---
         function calculateTotal() {
-            const checkIn = document.getElementById('checkIn').value;
-            const checkOut = document.getElementById('checkOut').value;
+            const checkIn = checkInInput.value;
+            const checkOut = checkOutInput.value;
             const quartoId = document.getElementById('quartoId').value;
 
             if (checkIn && checkOut && quartoId) {
-                const dataCheckIn = new Date(checkIn);
-                const dataCheckOut = new Date(checkOut);
-                const diffTime = Math.abs(dataCheckOut - dataCheckIn);
+                const dataCheckIn = new Date(checkIn + 'T00:00:00');
+                const dataCheckOut = new Date(checkOut + 'T00:00:00');
+
+                // Se check-out for antes ou igual ao check-in, zera o total
+                if (dataCheckOut <= dataCheckIn) {
+                    document.getElementById('valorTotal').value = '0.00';
+                    return;
+                }
+
+                const diffTime = dataCheckOut.getTime() - dataCheckIn.getTime();
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
                 const quarto = quartos.find(q => q.id === quartoId);
                 if (quarto && diffDays > 0) {
                     const total = diffDays * quarto.preco;
                     document.getElementById('valorTotal').value = total.toFixed(2);
+                } else {
+                    document.getElementById('valorTotal').value = '0.00';
                 }
             }
         }
 
-        document.getElementById('checkIn').addEventListener('change', calculateTotal);
-        document.getElementById('checkOut').addEventListener('change', calculateTotal);
+        // --- NOVO: Listener para atualizar data mínima do Check-out ---
+        checkInInput.addEventListener('change', () => {
+            const checkInDate = checkInInput.value;
+            if (checkInDate) {
+                // Define a data mínima de check-out para o dia SEGUINTE ao check-in
+                const nextDay = new Date(checkInDate + 'T00:00:00');
+                nextDay.setDate(nextDay.getDate() + 1);
+                const minCheckOutDate = nextDay.toISOString().split('T')[0];
+                
+                checkOutInput.min = minCheckOutDate;
+
+                // Se o check-out atual for inválido, limpa o campo
+                if (checkOutInput.value && checkOutInput.value < minCheckOutDate) {
+                    checkOutInput.value = '';
+                    showAlert('Data de Check-out inválida. Selecione novamente.', 'warning');
+                }
+            }
+            calculateTotal(); // Chama o cálculo
+        });
+        
+        checkOutInput.addEventListener('change', calculateTotal);
         document.getElementById('quartoId').addEventListener('change', calculateTotal);
 
         window.openModal = async function(reservaId = null) {
@@ -235,12 +267,16 @@
                 reservaForm.reset();
                 document.getElementById('reservaId').value = '';
                 document.getElementById('status').value = 'ativa';
+                // --- NOVO: Limpa o 'min' do check-out ao abrir ---
+                checkOutInput.min = ''; 
             }
         };
 
         window.closeModal = function() {
             modal.classList.remove('show');
             reservaForm.reset();
+            // --- NOVO: Limpa o 'min' do check-out ao fechar ---
+            checkOutInput.min = '';
         };
 
         async function loadReservaData(reservaId) {
@@ -255,8 +291,15 @@
                     // Converte Timestamp para formato de data
                     const checkInDate = new Date(reserva.checkIn.seconds * 1000);
                     const checkOutDate = new Date(reserva.checkOut.seconds * 1000);
-                    document.getElementById('checkIn').value = checkInDate.toISOString().split('T')[0];
-                    document.getElementById('checkOut').value = checkOutDate.toISOString().split('T')[0];
+                    
+                    const checkInString = checkInDate.toISOString().split('T')[0];
+                    checkInInput.value = checkInString;
+                    checkOutInput.value = checkOutDate.toISOString().split('T')[0];
+
+                    // --- NOVO: Define o 'min' do check-out ao carregar ---
+                    const nextDay = new Date(checkInString + 'T00:00:00');
+                    nextDay.setDate(nextDay.getDate() + 1);
+                    checkOutInput.min = nextDay.toISOString().split('T')[0];
                     
                     document.getElementById('numeroPessoas').value = reserva.numeroPessoas;
                     document.getElementById('valorTotal').value = reserva.valorTotal;
@@ -266,9 +309,23 @@
             });
         }
 
+        // --- ATUALIZADO: Validação final antes de salvar ---
         reservaForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
+            const checkInValue = document.getElementById('checkIn').value;
+            const checkOutValue = document.getElementById('checkOut').value;
+
+            // --- VALIDAÇÃO FINAL ---
+            const dataCheckIn = new Date(checkInValue + 'T00:00:00');
+            const dataCheckOut = new Date(checkOutValue + 'T00:00:00');
+
+            if (dataCheckOut <= dataCheckIn) {
+                showAlert('Erro: A data de Check-out deve ser posterior à data de Check-in.', 'error');
+                return; // Impede o envio do formulário
+            }
+            // --- FIM DA VALIDAÇÃO ---
+
             const reservaId = document.getElementById('reservaId').value;
             const clienteId = document.getElementById('clienteId').value;
             const quartoId = document.getElementById('quartoId').value;
@@ -277,16 +334,13 @@
             const cliente = clientes.find(c => c.id === clienteId);
             const quarto = quartos.find(q => q.id === quartoId);
             
-            const checkInValue = document.getElementById('checkIn').value;
-            const checkOutValue = document.getElementById('checkOut').value;
-            
             const reservaData = {
                 clienteId: clienteId,
                 nomeCliente: cliente.nome,
                 quartoId: quartoId,
                 numeroQuarto: quarto.numero,
-                checkIn: new Date(checkInValue + 'T12:00:00'),
-                checkOut: new Date(checkOutValue + 'T12:00:00'),
+                checkIn: dataCheckIn, // Usa o objeto Date criado na validação
+                checkOut: dataCheckOut, // Usa o objeto Date criado na validação
                 numeroPessoas: parseInt(document.getElementById('numeroPessoas').value),
                 valorTotal: parseFloat(document.getElementById('valorTotal').value),
                 observacoes: document.getElementById('observacoes').value,
@@ -393,4 +447,3 @@
     </script>
 </body>
 </html>
-

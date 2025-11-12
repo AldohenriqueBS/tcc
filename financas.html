@@ -169,12 +169,12 @@
                 <input type="hidden" id="despesaId">
                 
                 <div class="form-group">
-                    <label class="form-label">Data de Emissão</label>
+                    <label class="form-label">Data de Emissão*</label>
                     <input type="date" id="dataEmissao" class="form-input" required>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">Categoria</label>
+                    <label class="form-label">Categoria*</label>
                     <select id="categoria" class="form-select" required>
                         <option value="">Selecione...</option>
                         <option value="Materiais de Limpeza">Materiais de Limpeza</option>
@@ -194,32 +194,32 @@
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">Fornecedor/Empresa</label>
+                    <label class="form-label">Fornecedor/Empresa*</label>
                     <input type="text" id="fornecedor" class="form-input" required>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">CNPJ do Fornecedor</label>
+                    <label class="form-label">CNPJ do Fornecedor*</label>
                     <input type="text" id="cnpjFornecedor" class="form-input" maxlength="18">
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">Número da Nota Fiscal</label>
-                    <input type="text" id="numeroNF" class="form-input" required>
+                    <label class="form-label">Número da Nota Fiscal*</label>
+                    <input type="text" id="numeroNF" class="form-input" required maxlength="44">
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">Descrição Detalhada</label>
-                    <textarea id="descricao" class="form-textarea" required></textarea>
+                    <label class="form-label">Descrição Detalhada*</label>
+                    <textarea id="descricao" class="form-textarea" required maxlength="1000"></textarea>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">Valor Total (R$)</label>
+                    <label class="form-label">Valor Total (R$)*</label>
                     <input type="number" id="valor" class="form-input" step="0.01" min="0" required>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">Forma de Pagamento</label>
+                    <label class="form-label">Forma de Pagamento*</label>
                     <select id="formaPagamento" class="form-select" required>
                         <option value="">Selecione...</option>
                         <option value="Dinheiro">Dinheiro</option>
@@ -232,14 +232,14 @@
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">Data de Pagamento</label>
+                    <label class="form-label">Data de Pagamento*</label>
                     <input type="date" id="dataPagamento" class="form-input">
                 </div>
-                
+<!--                 
                 <div class="form-group">
                     <label class="form-label">Observações</label>
                     <textarea id="observacoes" class="form-textarea"></textarea>
-                </div>
+                </div> -->
                 
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
@@ -359,7 +359,7 @@
                         document.getElementById('dataPagamento').value = new Date(despesa.dataPagamento.seconds * 1000).toISOString().split('T')[0];
                     }
                     
-                    document.getElementById('observacoes').value = despesa.observacoes || '';
+                    // document.getElementById('observacoes').value = despesa.observacoes || '';
                 } else {
                     showAlert('Despesa não encontrada.', 'error');
                 }
@@ -391,7 +391,7 @@
                 valor: parseFloat(document.getElementById('valor').value),
                 formaPagamento: document.getElementById('formaPagamento').value,
                 dataPagamento: dataPagamentoDate,
-                observacoes: document.getElementById('observacoes').value,
+                // observacoes: document.getElementById('observacoes').value,
                 dataAtualizacao: serverTimestamp()
             };
 

@@ -79,12 +79,12 @@
                 <input type="hidden" id="quartoId">
                 
                 <div class="form-group">
-                    <label class="form-label" for="numero">Número do Quarto</label>
+                    <label class="form-label" for="numero">Número do Quarto*</label>
                     <input type="text" id="numero" class="form-input" placeholder="Ex: 101" required>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label" for="tipo">Tipo</label>
+                    <label class="form-label" for="tipo">Tipo*</label>
                     <select id="tipo" class="form-select" required>
                         <option value="">Selecione...</option>
                         <option value="Standard">Standard</option>
@@ -95,22 +95,22 @@
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label" for="capacidade">Capacidade (pessoas)</label>
+                    <label class="form-label" for="capacidade">Capacidade (pessoas)*</label>
                     <input type="number" id="capacidade" class="form-input" min="1" max="10" required>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label" for="preco">Preço por Diária (R$)</label>
+                    <label class="form-label" for="preco">Preço por Diária (R$)*</label>
                     <input type="number" id="preco" class="form-input" step="0.01" min="0" required>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label" for="descricao">Descrição</label>
+                    <label class="form-label" for="descricao">Descrição*</label>
                     <textarea id="descricao" class="form-textarea" placeholder="Descreva as características do quarto"></textarea>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label" for="status">Status</label>
+                    <label class="form-label" for="status">Status*</label>
                     <select id="status" class="form-select" required>
                         <option value="disponivel">Disponível</option>
                         <option value="ocupado">Ocupado</option>
@@ -119,7 +119,7 @@
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label" for="statusLimpeza">Status de Limpeza</label>
+                    <label class="form-label" for="statusLimpeza">Status de Limpeza*</label>
                     <select id="statusLimpeza" class="form-select" required>
                         <option value="limpo">Limpo (Pronto para uso)</option>
                         <option value="sujo">Sujo (Aguardando limpeza)</option>
@@ -311,79 +311,87 @@ window.deleteQuarto = async function(quartoId, numero) {
 // Carrega todos os quartos do Firestore e os renderiza na tabela HTML.
 
 async function loadQuartos() {
-    // Mostra o indicador de 'loading'.
-    loading.classList.add('show');
-    // Pega o elemento 'tbody' (corpo da tabela) onde as linhas serão inseridas.
-    const tableBody = document.getElementById('quartosTableBody');
-    
-    try {
-        // Cria uma query no Firestore.
-        const q = query(
-            collection(db, 'quartos'), // Da coleção 'quartos'.
-            orderBy('numero', 'asc')   // Ordenada pelo 'numero' em ordem ascendente.
-        );
-        // Executa a consulta e obtém o "snapshot" (foto) dos resultados.
-        const querySnapshot = await getDocs(q);
-
-        // Se o snapshot estiver vazio (nenhum quarto cadastrado).
-        if (querySnapshot.empty) {
-            tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Nenhum quarto cadastrado</td></tr>';
-            return; // Encerra a função aqui.
-        }
-
-        // Limpa o corpo da tabela (remove linhas antigas ou a mensagem "Nenhum quarto...").
-        tableBody.innerHTML = '';
-        
-        // Itera sobre cada documento ('doc') retornado na consulta.
-        querySnapshot.forEach((doc) => {
-            // Pega os dados de dentro do documento (o objeto 'quarto').
-            const quarto = doc.data();
-            // Cria um novo elemento HTML de linha de tabela (<tr>).
-            const row = document.createElement('tr');
+            // Mostra o indicador de 'loading'.
+            loading.classList.add('show');
+            // Pega o elemento 'tbody' (corpo da tabela) onde as linhas serão inseridas.
+            const tableBody = document.getElementById('quartosTableBody');
             
-            // Lógica para definir a classe CSS do "badge" de status
-            let statusClass = 'badge-success'; // Verde (padrão 'disponivel')
-            if (quarto.status === 'ocupado') statusClass = 'badge-danger'; // Vermelho
-            else if (quarto.status === 'manutencao') statusClass = 'badge-warning'; // Laranja
-            
-            // Lógica para definir a classe CSS e o texto do "badge" de limpeza.
-            let limpezaClass = 'badge-success';
-            let limpezaTexto = 'Limpo';
-            if (quarto.statusLimpeza === 'sujo') {
-                limpezaClass = 'badge-danger';
-                limpezaTexto = 'Sujo';
-            } else if (quarto.statusLimpeza === 'em_limpeza') {
-                limpezaClass = 'badge-warning';
-                limpezaTexto = 'Em limpeza';
+            try {
+                // Cria uma query no Firestore.
+                const q = query(
+                    collection(db, 'quartos'), // Da coleção 'quartos'.
+                    orderBy('numero', 'asc')   // Ordenada pelo 'numero' em ordem ascendente.
+                );
+                // Executa a consulta e obtém o "snapshot" (foto) dos resultados.
+                const querySnapshot = await getDocs(q);
+
+                // Se o snapshot estiver vazio (nenhum quarto cadastrado).
+                if (querySnapshot.empty) {
+                    tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Nenhum quarto cadastrado</td></tr>';
+                    return; // Encerra a função aqui.
+                }
+
+                // Limpa o corpo da tabela (remove linhas antigas ou a mensagem "Nenhum quarto...").
+                tableBody.innerHTML = '';
+                
+                // Itera sobre cada documento ('doc') retornado na consulta.
+                querySnapshot.forEach((doc) => {
+                    // Pega os dados de dentro do documento (o objeto 'quarto').
+                    const quarto = doc.data();
+                    // Cria um novo elemento HTML de linha de tabela (<tr>).
+                    const row = document.createElement('tr');
+                    
+                    // Lógica para definir a classe CSS do "badge" de status
+                    let statusClass = 'badge-success';
+                    // --- ADICIONADO: Lógica para o texto do status ---
+                    let statusTexto = 'Disponível';
+                    
+                    if (quarto.status === 'ocupado') {
+                        statusClass = 'badge-danger';
+                        statusTexto = 'Ocupado'; // Texto formatado
+                    } else if (quarto.status === 'manutencao') {
+                        statusClass = 'badge-warning';
+                        statusTexto = 'Manutenção'; // Texto formatado
+                    }
+                    
+                    // Lógica para definir a classe CSS e o texto do "badge" de limpeza.
+                    let limpezaClass = 'badge-success';
+                    let limpezaTexto = 'Limpo';
+                    if (quarto.statusLimpeza === 'sujo') {
+                        limpezaClass = 'badge-danger';
+                        limpezaTexto = 'Sujo';
+                    } else if (quarto.statusLimpeza === 'em_limpeza') {
+                        limpezaClass = 'badge-warning';
+                        limpezaTexto = 'Em limpeza';
+                    }
+                    
+                    // Define o HTML interno da linha (<tr>) usando um template literal (crases ``).
+                    // Isso permite inserir variáveis (como ${quarto.numero}) facilmente.
+                    row.innerHTML = `
+                        <td>${quarto.numero}</td>
+                        <td>${quarto.tipo}</td>
+                        <td>${quarto.capacidade} pessoa(s)</td>
+                        <td>R$ ${quarto.preco.toFixed(2)}</td>
+                        <td><span class="badge ${statusClass}">${statusTexto}</span></td>
+                        <td><span class="badge ${limpezaClass}">${limpezaTexto}</span></td>
+                        <td class="table-actions">
+                            <button class="btn btn-warning" onclick="editQuarto('${doc.id}')">Editar</button>
+                            <button class="btn btn-danger" onclick="deleteQuarto('${doc.id}', '${quarto.numero}')">Excluir</button>
+                        </td>
+                    `;
+                    
+                    // Adiciona a linha (<tr>) recém-criada ao corpo da tabela (<tbody>).
+                    tableBody.appendChild(row);
+                });
+
+            } catch (error) { // Se a leitura do banco de dados falhar...
+                console.error('Erro ao carregar quartos:', error);
+                tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Erro ao carregar quartos</td></tr>';
+            } finally { // O bloco 'finally' sempre é executado (com sucesso ou com erro).
+                // Esconde o indicador de 'loading'.
+                loading.classList.remove('show');
             }
-            
-            // Define o HTML interno da linha (<tr>) usando um template literal (crases ``).
-            // Isso permite inserir variáveis (como ${quarto.numero}) facilmente.
-            row.innerHTML = `
-                <td>${quarto.numero}</td>
-                <td>${quarto.tipo}</td>
-                <td>${quarto.capacidade} pessoa(s)</td>
-                <td>R$ ${quarto.preco.toFixed(2)}</td>
-                <td><span class="badge ${statusClass}">${quarto.status}</span></td>
-                <td><span class="badge ${limpezaClass}">${limpezaTexto}</span></td>
-                <td class="table-actions">
-                    <button class="btn btn-warning" onclick="editQuarto('${doc.id}')">Editar</button>
-                    <button class="btn btn-danger" onclick="deleteQuarto('${doc.id}', '${quarto.numero}')">Excluir</button>
-                </td>
-            `;
-            
-            // Adiciona a linha (<tr>) recém-criada ao corpo da tabela (<tbody>).
-            tableBody.appendChild(row);
-        });
-
-    } catch (error) { // Se a leitura do banco de dados falhar...
-        console.error('Erro ao carregar quartos:', error);
-        tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Erro ao carregar quartos</td></tr>';
-    } finally { // O bloco 'finally' sempre é executado (com sucesso ou com erro).
-        // Esconde o indicador de 'loading'.
-        loading.classList.remove('show');
-    }
-}
+        }
 
 // Chama a função 'loadQuartos' assim que o script é carregado
 // para preencher a tabela pela primeira vez.
