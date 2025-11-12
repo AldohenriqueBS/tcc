@@ -15,4 +15,4 @@ corrigir mensagem de exclusão
 # centralizar criação de quartos
 # Status "Manutenção" e "Disponível"
 Alterar cor do slogan da logo
-alterar "data da emissão" para "data da compra"
+# alterar "data da emissão" para "data da compra"

@@ -57,7 +57,7 @@
             </div>
         </div>
 
-        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 24px;">
+        <div class="grid grid-2-col">
             <div class="card">
                 <h2 class="card-title">Movimentação Financeira (Receitas vs Despesas)</h2>
                 <canvas id="movimentacaoFinanceiraChart"></canvas>
@@ -242,7 +242,7 @@
             statusCounts['manutencao'] || 0
         ];
 
-        // Pega o <canvas> do gráfico de ocupação.
+        // Pega o <canvas> do gráfico ocupação.
         const ctx = document.getElementById('ocupacaoQuartosChart');
         // Destrói o gráfico anterior, se ele já existir.
         if (ocupacaoQuartosChart) ocupacaoQuartosChart.destroy();
@@ -286,7 +286,7 @@
                 tableBody.innerHTML = '';
                 
                 for (const reserva of reservasRecentes) {
-
+                    
                     const row = document.createElement('tr');
                     
                     // Formata as datas

@@ -134,316 +134,378 @@
     </div>
 
     <script type="module">
-        import { db } from './firebase-config.js';
-        import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy, getDoc } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+    import { db } from './firebase-config.js';
+    import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy, getDoc } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
 
-        // Verifica autenticação
-        if (!localStorage.getItem('userId')) {
-            window.location.href = 'login.html';
-        }
+    // Se o usuário ñ tiver ('userId'), ele é expulso para a página de login.
+    if (!localStorage.getItem('userId')) {
+        window.location.href = 'login.html';
+    }
 
-        const userName = localStorage.getItem('userName') || 'Usuário';
-        document.getElementById('userName').textContent = userName;
+    // Estamos pegando o nome do usuário (que salvamos no login) e...
+    const userName = localStorage.getItem('userName') || 'Usuário';
+    // ...colocando lá no topo da página, para dizer "Olá, Usuário".
+    document.getElementById('userName').textContent = userName;
 
-        window.logout = function() {
-            localStorage.clear();
-            window.location.href = 'login.html';
-        };
+    // Função do botão "Sair".
+    window.logout = function() {
+        localStorage.clear(); // Limpa o "carimbo"
+        window.location.href = 'login.html'; // Manda de volta pro login
+    };
 
-        const modal = document.getElementById('reservaModal');
-        const reservaForm = document.getElementById('reservaForm');
-        const alertDiv = document.getElementById('alert');
-        const loading = document.getElementById('loading');
+    // Guarda o modal numa 'const' (uma "caixa") para ser mais rápido.
+    const modal = document.getElementById('reservaModal');
+    const reservaForm = document.getElementById('reservaForm'); // O formulário
+    const alertDiv = document.getElementById('alert'); // A caixa de alerta (sucesso/erro)
+    const loading = document.getElementById('loading'); // O ícone de "carregando"
+    
+    // guarda as datas de checkIn e Out
+    const checkInInput = document.getElementById('checkIn');
+    const checkOutInput = document.getElementById('checkOut');
+
+    // Estas são "caixas" (Arrays) vazias.
+    // Quando a página carregar, enche elas com os clientes e quartos do firebase
+    let clientes = [];
+    let quartos = [];
+
+    // Mostra o alerta, e depois de 5 segundos, esconde ele de novo.
+    function showAlert(message, type) {
+        alertDiv.textContent = message;
+        alertDiv.className = `alert alert-${type} show`;
+        setTimeout(() => {
+            alertDiv.className = 'alert';
+        }, 5000);
+    }
+
+    // 'async' significa que esta função vai fazer um pedido ao Firebase e
+    // vai ter que esperar (await) pela resposta, sem travar o site.
+    //
+    // Busca os clientes no Firebase...
+    async function loadClientes() {
+        const clientesSnapshot = await getDocs(collection(db, 'clientes'));
+        clientes = []; // Limpa a "caixa" de clientes
+        const clienteSelect = document.getElementById('clienteId');
+        clienteSelect.innerHTML = '<option value="">Selecione um cliente...</option>';
         
-        // --- NOVO: Seletores de data ---
-        const checkInInput = document.getElementById('checkIn');
-        const checkOutInput = document.getElementById('checkOut');
-
-        let clientes = [];
-        let quartos = [];
-
-        function showAlert(message, type) {
-            alertDiv.textContent = message;
-            alertDiv.className = `alert alert-${type} show`;
-            setTimeout(() => {
-                alertDiv.className = 'alert';
-            }, 5000);
-        }
-
-        async function loadClientes() {
-            const clientesSnapshot = await getDocs(collection(db, 'clientes'));
-            clientes = [];
-            const clienteSelect = document.getElementById('clienteId');
-            clienteSelect.innerHTML = '<option value="">Selecione um cliente...</option>';
-            
-            clientesSnapshot.forEach((doc) => {
-                const cliente = doc.data();
-                clientes.push({ id: doc.id, ...cliente });
-                const option = document.createElement('option');
-                option.value = doc.id;
-                option.textContent = cliente.nome;
-                clienteSelect.appendChild(option);
-            });
-        }
-
-        async function loadQuartos() {
-            const quartosSnapshot = await getDocs(collection(db, 'quartos'));
-            quartos = [];
-            const quartoSelect = document.getElementById('quartoId');
-            quartoSelect.innerHTML = '<option value="">Selecione um quarto...</option>';
-            
-            quartosSnapshot.forEach((doc) => {
-                const quarto = doc.data();
-                quartos.push({ id: doc.id, ...quarto });
-                const option = document.createElement('option');
-                option.value = doc.id;
-                option.textContent = `${quarto.numero} - ${quarto.tipo} (R$ ${quarto.preco.toFixed(2)}/diária)`;
-                quartoSelect.appendChild(option);
-            });
-        }
-
-        // --- ATUALIZADO: Validação de data no cálculo ---
-        function calculateTotal() {
-            const checkIn = checkInInput.value;
-            const checkOut = checkOutInput.value;
-            const quartoId = document.getElementById('quartoId').value;
-
-            if (checkIn && checkOut && quartoId) {
-                const dataCheckIn = new Date(checkIn + 'T00:00:00');
-                const dataCheckOut = new Date(checkOut + 'T00:00:00');
-
-                // Se check-out for antes ou igual ao check-in, zera o total
-                if (dataCheckOut <= dataCheckIn) {
-                    document.getElementById('valorTotal').value = '0.00';
-                    return;
-                }
-
-                const diffTime = dataCheckOut.getTime() - dataCheckIn.getTime();
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-                const quarto = quartos.find(q => q.id === quartoId);
-                if (quarto && diffDays > 0) {
-                    const total = diffDays * quarto.preco;
-                    document.getElementById('valorTotal').value = total.toFixed(2);
-                } else {
-                    document.getElementById('valorTotal').value = '0.00';
-                }
-            }
-        }
-
-        // --- NOVO: Listener para atualizar data mínima do Check-out ---
-        checkInInput.addEventListener('change', () => {
-            const checkInDate = checkInInput.value;
-            if (checkInDate) {
-                // Define a data mínima de check-out para o dia SEGUINTE ao check-in
-                const nextDay = new Date(checkInDate + 'T00:00:00');
-                nextDay.setDate(nextDay.getDate() + 1);
-                const minCheckOutDate = nextDay.toISOString().split('T')[0];
-                
-                checkOutInput.min = minCheckOutDate;
-
-                // Se o check-out atual for inválido, limpa o campo
-                if (checkOutInput.value && checkOutInput.value < minCheckOutDate) {
-                    checkOutInput.value = '';
-                    showAlert('Data de Check-out inválida. Selecione novamente.', 'warning');
-                }
-            }
-            calculateTotal(); // Chama o cálculo
+        // ...e para cada cliente que o Firebase mandou,
+        // a gente cria um <option> no HTML e joga dentro do menu <select>.
+        clientesSnapshot.forEach((doc) => {
+            const cliente = doc.data();
+            clientes.push({ id: doc.id, ...cliente }); // Guarda na nossa "caixa"
+            const option = document.createElement('option');
+            option.value = doc.id;
+            option.textContent = cliente.nome;
+            clienteSelect.appendChild(option);
         });
+    }
+
+    // Esta função faz EXATAMENTE a mesma coisa, mas para os Quartos.
+    async function loadQuartos() {
+        const quartosSnapshot = await getDocs(collection(db, 'quartos'));
+        quartos = []; // Limpa a "caixa" de quartos
+        const quartoSelect = document.getElementById('quartoId');
+        quartoSelect.innerHTML = '<option value="">Selecione um quarto...</option>';
         
-        checkOutInput.addEventListener('change', calculateTotal);
-        document.getElementById('quartoId').addEventListener('change', calculateTotal);
+        quartosSnapshot.forEach((doc) => {
+            const quarto = doc.data();
+            quartos.push({ id: doc.id, ...quarto }); // Guarda na nossa "caixa"
+            const option = document.createElement('option');
+            option.value = doc.id;
+            // Um texto mais descritivo para o usuário saber o preço
+            option.textContent = `${quarto.numero} - ${quarto.tipo} (R$ ${quarto.preco.toFixed(2)}/diária)`;
+            quartoSelect.appendChild(option);
+        });
+    }
 
-        window.openModal = async function(reservaId = null) {
-            await loadClientes();
-            await loadQuartos();
-            
-            modal.classList.add('show');
-            document.getElementById('modalTitle').textContent = reservaId ? 'Editar Reserva' : 'Nova Reserva';
-            
-            if (reservaId) {
-                loadReservaData(reservaId);
-            } else {
-                reservaForm.reset();
-                document.getElementById('reservaId').value = '';
-                document.getElementById('status').value = 'ativa';
-                // --- NOVO: Limpa o 'min' do check-out ao abrir ---
-                checkOutInput.min = ''; 
-            }
-        };
+    // calcula o preço da reserva.
+    function calculateTotal() {
+        // 1. Pega as datas e o quarto que o usuário selecionou.
+        const checkIn = checkInInput.value;
+        const checkOut = checkOutInput.value;
+        const quartoId = document.getElementById('quartoId').value;
 
-        window.closeModal = function() {
-            modal.classList.remove('show');
-            reservaForm.reset();
-            // --- NOVO: Limpa o 'min' do check-out ao fechar ---
-            checkOutInput.min = '';
-        };
+        // 2. Se tudo estiver preenchido...
+        if (checkIn && checkOut && quartoId) {
+            // ...transforma o texto "2025-11-12" em um objeto de Data.
+            const dataCheckIn = new Date(checkIn + 'T00:00:00');
+            const dataCheckOut = new Date(checkOut + 'T00:00:00');
 
-        async function loadReservaData(reservaId) {
-            const reservasSnapshot = await getDocs(collection(db, 'reservas'));
-            reservasSnapshot.forEach((doc) => {
-                if (doc.id === reservaId) {
-                    const reserva = doc.data();
-                    document.getElementById('reservaId').value = doc.id;
-                    document.getElementById('clienteId').value = reserva.clienteId;
-                    document.getElementById('quartoId').value = reserva.quartoId;
-                    
-                    // Converte Timestamp para formato de data
-                    const checkInDate = new Date(reserva.checkIn.seconds * 1000);
-                    const checkOutDate = new Date(reserva.checkOut.seconds * 1000);
-                    
-                    const checkInString = checkInDate.toISOString().split('T')[0];
-                    checkInInput.value = checkInString;
-                    checkOutInput.value = checkOutDate.toISOString().split('T')[0];
-
-                    // --- NOVO: Define o 'min' do check-out ao carregar ---
-                    const nextDay = new Date(checkInString + 'T00:00:00');
-                    nextDay.setDate(nextDay.getDate() + 1);
-                    checkOutInput.min = nextDay.toISOString().split('T')[0];
-                    
-                    document.getElementById('numeroPessoas').value = reserva.numeroPessoas;
-                    document.getElementById('valorTotal').value = reserva.valorTotal;
-                    document.getElementById('observacoes').value = reserva.observacoes || '';
-                    document.getElementById('status').value = reserva.status;
-                }
-            });
-        }
-
-        // --- ATUALIZADO: Validação final antes de salvar ---
-        reservaForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const checkInValue = document.getElementById('checkIn').value;
-            const checkOutValue = document.getElementById('checkOut').value;
-
-            // --- VALIDAÇÃO FINAL ---
-            const dataCheckIn = new Date(checkInValue + 'T00:00:00');
-            const dataCheckOut = new Date(checkOutValue + 'T00:00:00');
-
+            // Verificamos se a data de Saída é ANTES ou IGUAL à de Entrada.
             if (dataCheckOut <= dataCheckIn) {
-                showAlert('Erro: A data de Check-out deve ser posterior à data de Check-in.', 'error');
-                return; // Impede o envio do formulário
+                // Se for, o valor é R$ 0,00 e a gente para a função aqui.
+                document.getElementById('valorTotal').value = '0.00';
+                return; // 'return' para a execução.
             }
-            // --- FIM DA VALIDAÇÃO ---
 
-            const reservaId = document.getElementById('reservaId').value;
-            const clienteId = document.getElementById('clienteId').value;
-            const quartoId = document.getElementById('quartoId').value;
-            
-            // Busca dados do cliente e quarto
-            const cliente = clientes.find(c => c.id === clienteId);
+            // 4. Se as datas estiverem OK, calculamos a diferença em milissegundos...
+            const diffTime = dataCheckOut.getTime() - dataCheckIn.getTime();
+            // ...e transformamos em dias. (Math.ceil arredonda para cima)
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            // 5. Encontramos o quarto que o usuário escolheu na nossa "caixa" (array)...
             const quarto = quartos.find(q => q.id === quartoId);
-            
-            const reservaData = {
-                clienteId: clienteId,
-                nomeCliente: cliente.nome,
-                quartoId: quartoId,
-                numeroQuarto: quarto.numero,
-                checkIn: dataCheckIn, // Usa o objeto Date criado na validação
-                checkOut: dataCheckOut, // Usa o objeto Date criado na validação
-                numeroPessoas: parseInt(document.getElementById('numeroPessoas').value),
-                valorTotal: parseFloat(document.getElementById('valorTotal').value),
-                observacoes: document.getElementById('observacoes').value,
-                status: document.getElementById('status').value,
-                dataAtualizacao: serverTimestamp()
-            };
-
-            try {
-                if (reservaId) {
-                    await updateDoc(doc(db, 'reservas', reservaId), reservaData);
-                    showAlert('Reserva atualizada com sucesso!', 'success');
-                } else {
-                    reservaData.dataCriacao = serverTimestamp();
-                    await addDoc(collection(db, 'reservas'), reservaData);
-                    
-                    // Atualiza status do quarto para ocupado
-                    if (reservaData.status === 'ativa' || reservaData.status === 'confirmada') {
-                        await updateDoc(doc(db, 'quartos', quartoId), {
-                            status: 'ocupado'
-                        });
-                    }
-                    
-                    showAlert('Reserva cadastrada com sucesso!', 'success');
-                }
-                
-                closeModal();
-                loadReservas();
-                
-            } catch (error) {
-                console.error('Erro ao salvar reserva:', error);
-                showAlert('Erro ao salvar reserva. Tente novamente.', 'error');
-            }
-        });
-
-        window.editReserva = function(reservaId) {
-            openModal(reservaId);
-        };
-
-        window.deleteReserva = async function(reservaId, nomeCliente) {
-            if (confirm(`Tem certeza que deseja excluir a reserva de ${nomeCliente}?`)) {
-                try {
-                    await deleteDoc(doc(db, 'reservas', reservaId));
-                    showAlert('Reserva excluída com sucesso!', 'success');
-                    loadReservas();
-                } catch (error) {
-                    console.error('Erro ao excluir reserva:', error);
-                    showAlert('Erro ao excluir reserva. Tente novamente.', 'error');
-                }
-            }
-        };
-
-        async function loadReservas() {
-            loading.classList.add('show');
-            const tableBody = document.getElementById('reservasTableBody');
-            
-            try {
-                const q = query(collection(db, 'reservas'), orderBy('dataCriacao', 'desc'));
-                const querySnapshot = await getDocs(q);
-
-                if (querySnapshot.empty) {
-                    tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Nenhuma reserva cadastrada</td></tr>';
-                    return;
-                }
-
-                tableBody.innerHTML = '';
-                
-                querySnapshot.forEach((doc) => {
-                    const reserva = doc.data();
-                    const row = document.createElement('tr');
-                    
-                    const checkIn = reserva.checkIn ? new Date(reserva.checkIn.seconds * 1000).toLocaleDateString('pt-BR') : '-';
-                    const checkOut = reserva.checkOut ? new Date(reserva.checkOut.seconds * 1000).toLocaleDateString('pt-BR') : '-';
-                    
-                    let statusClass = 'badge-primary';
-                    if (reserva.status === 'ativa' || reserva.status === 'confirmada') statusClass = 'badge-success';
-                    else if (reserva.status === 'cancelada') statusClass = 'badge-danger';
-                    else if (reserva.status === 'finalizada') statusClass = 'badge-warning';
-                    
-                    row.innerHTML = `
-                        <td>${reserva.nomeCliente}</td>
-                        <td>${reserva.numeroQuarto}</td>
-                        <td>${checkIn}</td>
-                        <td>${checkOut}</td>
-                        <td>R$ ${reserva.valorTotal.toFixed(2)}</td>
-                        <td><span class="badge ${statusClass}">${reserva.status}</span></td>
-                        <td class="table-actions">
-                            <button class="btn btn-warning" onclick="editReserva('${doc.id}')">Editar</button>
-                            <button class="btn btn-danger" onclick="deleteReserva('${doc.id}', '${reserva.nomeCliente}')">Excluir</button>
-                        </td>
-                    `;
-                    
-                    tableBody.appendChild(row);
-                });
-
-            } catch (error) {
-                console.error('Erro ao carregar reservas:', error);
-                tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Erro ao carregar reservas</td></tr>';
-            } finally {
-                loading.classList.remove('show');
+            // ...e se tudo estiver certo, multiplicamos os dias pelo preço.
+            if (quarto && diffDays > 0) {
+                const total = diffDays * quarto.preco;
+                document.getElementById('valorTotal').value = total.toFixed(2);
+            } else {
+                document.getElementById('valorTotal').value = '0.00';
             }
         }
+    }
 
-        loadReservas();
-    </script>
+    // Quando o usuário *muda* a data de check-in...
+    checkInInput.addEventListener('change', () => {
+        const checkInDate = checkInInput.value;
+        if (checkInDate) {
+            // ...nós calculamos qual é o "dia seguinte".
+            const nextDay = new Date(checkInDate + 'T00:00:00');
+            nextDay.setDate(nextDay.getDate() + 1);
+            const minCheckOutDate = nextDay.toISOString().split('T')[0];
+            
+            // O usuário fica *impossibilitado* de clicar em um dia errado.
+            checkOutInput.min = minCheckOutDate;
+
+            // Se o usuário já tinha um check-out errado, a gente limpa o campo.
+            if (checkOutInput.value && checkOutInput.value < minCheckOutDate) {
+                checkOutInput.value = '';
+                showAlert('Data de Check-out inválida. Selecione novamente.', 'warning');
+            }
+        }
+        calculateTotal(); // Recalcula o total toda vez que mexe no check-in
+    });
+    
+    // Também recalculamos o total se ele mexer no check-out ou no quarto.
+    checkOutInput.addEventListener('change', calculateTotal);
+    document.getElementById('quartoId').addEventListener('change', calculateTotal);
+
+    // Esta função abre o popup.
+    window.openModal = async function(reservaId = null) {
+        // Antes de mostrar o popup, nós 'await' (esperamos)
+        // as funções que buscam os clientes e quartos terminarem.
+        // Assim, os menus <select> sempre estarão cheios.
+        await loadClientes();
+        await loadQuartos();
+        
+        modal.classList.add('show'); // Mostra o popup
+        
+        // Se 'reservaId' existir, é porque estamos EDITANDO.
+        if (reservaId) {
+            document.getElementById('modalTitle').textContent = 'Editar Reserva';
+            loadReservaData(reservaId); // Carrega os dados da reserva no form
+        } else {
+            // Se não, estamos CRIANDO.
+            document.getElementById('modalTitle').textContent = 'Nova Reserva';
+            reservaForm.reset(); // Limpa o formulário
+            document.getElementById('reservaId').value = '';
+            document.getElementById('status').value = 'ativa';
+            checkOutInput.min = ''; // Limpa o bloqueio do calendário
+        }
+    };
+
+    // Esta função fecha o popup e limpa tudo.
+    window.closeModal = function() {
+        modal.classList.remove('show');
+        reservaForm.reset();
+        checkOutInput.min = ''; // Limpa o bloqueio do calendário
+    };
+
+    // Se estamos editando, esta função busca os dados da reserva específica
+    // e preenche o formulário.
+    async function loadReservaData(reservaId) {
+        // (Aqui usamos 'getDocs' e filtramos, mas o ideal seria 'getDoc'
+        // para buscar só um. Mas assim funciona também.)
+        const reservasSnapshot = await getDocs(collection(db, 'reservas'));
+        reservasSnapshot.forEach((doc) => {
+            if (doc.id === reservaId) {
+                const reserva = doc.data();
+                // ... (código para preencher todos os campos do formulário) ...
+                
+                // Pega os dados
+                const checkInDate = new Date(reserva.checkIn.seconds * 1000);
+                const checkInString = checkInDate.toISOString().split('T')[0];
+                checkInInput.value = checkInString;
+                checkOutInput.value = new Date(reserva.checkOut.seconds * 1000).toISOString().split('T')[0];
+
+                // Também aplicamos a regra de bloqueio do calendário aqui
+                const nextDay = new Date(checkInString + 'T00:00:00');
+                nextDay.setDate(nextDay.getDate() + 1);
+                checkOutInput.min = nextDay.toISOString().split('T')[0];
+                
+                // ... (resto do preenchimento) ...
+                document.getElementById('numeroPessoas').value = reserva.numeroPessoas;
+                // ... etc ...
+                document.getElementById('status').value = reserva.status;
+            }
+        });
+    }
+
+    // AQUI! Este é o "espião" do botão "Salvar".
+    reservaForm.addEventListener('submit', async (e) => {
+        // 1. Impede a página de recarregar
+        e.preventDefault();
+        
+        // 2. Pega as datas de novo...
+        const checkInValue = document.getElementById('checkIn').value;
+        const checkOutValue = document.getElementById('checkOut').value;
+
+        // 3. ...e faz uma ÚLTIMA VERIFICAÇÃO de segurança.
+        // Se a data de check-out for inválida, mostramos um erro e
+        // usamos 'return' para parar tudo. Não salvamos nada.
+        const dataCheckIn = new Date(checkInValue + 'T00:00:00');
+        const dataCheckOut = new Date(checkOutValue + 'T00:00:00');
+        if (dataCheckOut <= dataCheckIn) {
+            showAlert('Erro: A data de Check-out deve ser posterior à data de Check-in.', 'error');
+            return; 
+        }
+
+        // 4. Se passou na verificação, pegamos o ID (se existir)
+        const reservaId = document.getElementById('reservaId').value;
+        
+        // 5. Pegamos o nome do cliente e o número do quarto
+        // (das nossas "caixas" de arrays que enchemos lá no começo)
+        const clienteId = document.getElementById('clienteId').value;
+        const quartoId = document.getElementById('quartoId').value;
+        const cliente = clientes.find(c => c.id === clienteId);
+        const quarto = quartos.find(q => q.id === quartoId);
+        
+        // todos os dados do formulário
+        const reservaData = {
+            clienteId: clienteId,
+            nomeCliente: cliente.nome, // Já salvamos o nome p/ não ter que buscar de novo
+            quartoId: quartoId,
+            numeroQuarto: quarto.numero, // Mesmo caso aqui
+            checkIn: dataCheckIn, // Salvamos como objeto Date
+            checkOut: dataCheckOut, // Salvamos como objeto Date
+            numeroPessoas: parseInt(document.getElementById('numeroPessoas').value),
+            valorTotal: parseFloat(document.getElementById('valorTotal').value),
+            observacoes: document.getElementById('observacoes').value,
+            status: document.getElementById('status').value,
+            dataAtualizacao: serverTimestamp() // A "hora do servidor"
+        };
+
+        // 7. Bloco try...catch para tratar erros 
+        try {
+            // 8. Se 'reservaId' EXISTE, estamos ATUALIZANDO (Update)
+            if (reservaId) {
+                await updateDoc(doc(db, 'reservas', reservaId), reservaData);
+                showAlert('Reserva atualizada com sucesso!', 'success');
+            } else {
+            // Se NÃO EXISTE, criamos
+                reservaData.dataCriacao = serverTimestamp(); // Data de criação
+                await addDoc(collection(db, 'reservas'), reservaData);
+                
+                // Se a reserva foi criada (e não está 'cancelada'),
+                // nós também vamos na coleção de 'quartos' e
+                // atualizamos o status daquele quarto para 'ocupado'.
+                if (reservaData.status === 'ativa' || reservaData.status === 'confirmada') {
+                    await updateDoc(doc(db, 'quartos', quartoId), {
+                        status: 'ocupado'
+                    });
+                }
+                
+                showAlert('Reserva cadastrada com sucesso!', 'success');
+            }
+            
+            // Fecha o popup e recarrega a tabela
+            closeModal();
+            loadReservas();
+            
+        } catch (error) {
+            // Se der erro, mostramos o alerta
+            console.error('Erro ao salvar reserva:', error);
+            showAlert('Erro ao salvar reserva. Tente novamente.', 'error');
+        }
+    });
+
+    // Assim que clica no editar, passa o ID do item que queremos editar.
+    window.editReserva = function(reservaId) {
+        openModal(reservaId);
+    };
+
+    // "Excluir"
+    window.deleteReserva = async function(reservaId, nomeCliente) {
+        // Pede confirmação
+        if (confirm(`Tem certeza que deseja excluir a reserva de ${nomeCliente}?`)) {
+            try {
+                // Manda o comando de deletar para o Firebase
+                await deleteDoc(doc(db, 'reservas', reservaId));
+                showAlert('Reserva excluída com sucesso!', 'success');
+                loadReservas(); // Recarrega a tabela
+            } catch (error) {
+                console.error('Erro ao excluir reserva:', error);
+                showAlert('Erro ao excluir reserva. Tente novamente.', 'error');
+            }
+        }
+    };
+
+    // função de "Ler" que constrói a tabela principal.
+    async function loadReservas() {
+        loading.classList.add('show'); // Mostra o "Carregando..."
+        const tableBody = document.getElementById('reservasTableBody');
+        
+        try {
+            // 1. Pede ao Firebase todas as 'reservas'
+            //    ordenadas pela 'dataCriacao' (mais novas primeiro)
+            const q = query(collection(db, 'reservas'), orderBy('dataCriacao', 'desc'));
+            const querySnapshot = await getDocs(q);
+
+            // 2. Se não vier nada...
+            if (querySnapshot.empty) {
+                tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Nenhuma reserva cadastrada</td></tr>';
+                return; // Para a função
+            }
+
+            // 3. Limpa a tabela
+            tableBody.innerHTML = '';
+            
+            // 4. Para cada reserva que o Firebase mandou...
+            querySnapshot.forEach((doc) => {
+                const reserva = doc.data();
+                // ...cria uma nova linha <tr>
+                const row = document.createElement('tr');
+                
+                // Formata as datas (Firebase manda em segundos,
+                // temos que converter para data do Brasil)
+                const checkIn = reserva.checkIn ? new Date(reserva.checkIn.seconds * 1000).toLocaleDateString('pt-BR') : '-';
+                const checkOut = reserva.checkOut ? new Date(reserva.checkOut.seconds * 1000).toLocaleDateString('pt-BR') : '-';
+                
+                // Lógica para definir a cor do "status" (verde, vermelho, etc.)
+                let statusClass = 'badge-primary';
+                if (reserva.status === 'ativa' || reserva.status === 'confirmada') statusClass = 'badge-success';
+                else if (reserva.status === 'cancelada') statusClass = 'badge-danger';
+                else if (reserva.status === 'finalizada') statusClass = 'badge-warning';
+                
+                // 5. Monta o HTML da linha com os dados da reserva
+                row.innerHTML = `
+                    <td>${reserva.nomeCliente}</td>
+                    <td>${reserva.numeroQuarto}</td>
+                    <td>${checkIn}</td>
+                    <td>${checkOut}</td>
+                    <td>R$ ${reserva.valorTotal.toFixed(2)}</td>
+                    <td><span class-="badge ${statusClass}">${reserva.status}</span></td>
+                    <td class="table-actions">
+                        <button class="btn btn-warning" onclick="editReserva('${doc.id}')">Editar</button>
+                        <button class="btn btn-danger" onclick="deleteReserva('${doc.id}', '${reserva.nomeCliente}')">Excluir</button>
+                    </td>
+                `;
+                
+                // 6. Adiciona a linha na tabela
+                tableBody.appendChild(row);
+            });
+
+        } catch (error) {
+            console.error('Erro ao carregar reservas:', error);
+            tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Erro ao carregar reservas</td></tr>';
+        } finally {
+            // 'finally' é executado dando certo ou dando erro
+            // (ex: esconde o "Carregando...")
+            loading.classList.remove('show');
+        }
+    }
+
+    // carregar a tabela quando a página abre.
+    loadReservas();
+</script>
 </body>
 </html>

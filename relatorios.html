@@ -79,7 +79,7 @@
             </div>
         </div>
 
-        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 24px;">
+        <div class="grid grid-2-col">
             <div class="card">
                 <h2 class="card-title">Movimentação Financeira (R$)</h2>
                 <canvas id="movimentacaoFinanceiraChart"></canvas>
@@ -97,7 +97,7 @@
 
         <div class="card">
             <h2 class="card-title">Relatórios Detalhados</h2>
-            <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
+            <div class="grid grid-auto-fit">
                 <button class="btn btn-success" onclick="downloadRelatorioGeral()">📊 Relatório Geral de Reservas</button>
                 <button class="btn btn-success" onclick="downloadRelatorioFinanceiro()">💰 Relatório Financeiro Completo</button>
                 <button class="btn btn-success" onclick="downloadRelatorioRendaBruta()">💵 Relatório de Renda Bruta Mensal</button>
